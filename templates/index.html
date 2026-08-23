@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استعلام جدول المتدرب</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #f0f4f8;
+            color: #2d3748;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 520px;
+            padding: 40px 30px 22px;
+            position: relative;
+            text-align: center;
+        }
+
+        /* أيقونة التقويم والعناوين */
+        .calendar-icon {
+            font-size: 45px;
+            margin-bottom: 12px;
+            line-height: 1;
+        }
+        h1 {
+            font-size: 24px;
+            color: #0f2d59;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+        p.subtitle {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 26px;
+        }
+
+        /* حقل الإدخال وزر البحث */
+        .form-group {
+            display: flex;
+            flex-direction: row-reverse;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 13px 18px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 15px;
+            text-align: center;
+            outline: none;
+            transition: all 0.2s ease;
+            color: #2d3748;
+        }
+        input[type="text"]::placeholder {
+            color: #a0aec0;
+        }
+        input[type="text"]:focus {
+            border-color: #00877d;
+            box-shadow: 0 0 0 3px rgba(0, 135, 125, 0.12);
+        }
+        button {
+            padding: 13px 26px;
+            background-color: #00877d;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            white-space: nowrap;
+        }
+        button:hover {
+            background-color: #006e66;
+        }
+        button:disabled {
+            background-color: #cbd5e0;
+            cursor: not-allowed;
+        }
+
+        /* التنبيهات */
+        .alert {
+            display: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13.5px;
+            margin-bottom: 15px;
+        }
+        .alert-error {
+            background-color: #fed7d7;
+            color: #9b2c2c;
+            border: 1px solid #feb2b2;
+        }
+
+        /* عرض النتيجة والتحميل */
+        #result-container {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .image-wrapper {
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fafafa;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            max-height: 550px;
+            overflow-y: auto;
+        }
+        .image-wrapper img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .btn-download {
+            display: inline-block;
+            padding: 11px 24px;
+            background-color: #00877d;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background-color 0.2s ease;
+        }
+        .btn-download:hover {
+            background-color: #006e66;
+        }
+
+        /* مؤشر التحميل */
+        .loader {
+            display: none;
+            margin: 15px auto;
+            border: 3.5px solid #f3f3f3;
+            border-top: 3.5px solid #00877d;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* تذييل البطاقة */
+        .card-footer-notes {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px dashed #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .footer-note-main {
+            font-size: 12px;
+            color: #718096;
+            font-weight: 600;
+        }
+        .footer-note-sub {
+            font-size: 11px;
+            color: #e53e3e; /* لون أحمر مميز */
+            font-weight: 700;
+        }
+
+        /* حقوق المطور أسفل اليسار بحجم مصغر وناعم */
+        .dev-credits {
+            position: absolute;
+            bottom: 8px;
+            left: 14px;
+            font-size: 8.5px;
+            color: #a0aec0;
+            font-family: Arial, sans-serif;
+            letter-spacing: 0.4px;
+            font-weight: 600;
+            direction: ltr;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="calendar-icon">📅</div>
+    <h1>استعلام جدول المتدرب</h1>
+    <p class="subtitle">أدخل رقمك التدريبي للحصول على جدولك الدراسي مباشرة</p>
+
+    <form id="search-form">
+        <div class="form-group">
+            <button type="submit" id="submit-btn">بحث</button>
+            <input type="text" id="trainee_id" name="trainee_id" placeholder="أدخل الرقم التدريبي" required autocomplete="off">
+        </div>
+    </form>
+
+    <div class="loader" id="loader"></div>
+    <div class="alert alert-error" id="error-box"></div>
+
+    <div id="result-container">
+        <div class="image-wrapper">
+            <img id="schedule-img" src="" alt="جدول المتدرب">
+        </div>
+        <a href="" id="download-link" download="جدول_المتدرب.png" class="btn-download">📥 تحميل صورة الجدول</a>
+    </div>
+
+    <div class="card-footer-notes">
+        <span class="footer-note-main">هذا النموذج خاص بمتدربي معهد الأفلاج</span>
+        <span class="footer-note-sub">نسخة أولية</span>
+    </div>
+
+    <!-- حقوق المطور -->
+    <div class="dev-credits">Powered by ENG.TURKI</div>
+</div>
+
+<script>
+    const form = document.getElementById('search-form');
+    const input = document.getElementById('trainee_id');
+    const submitBtn = document.getElementById('submit-btn');
+    const loader = document.getElementById('loader');
+    const errorBox = document.getElementById('error-box');
+    const resultContainer = document.getElementById('result-container');
+    const scheduleImg = document.getElementById('schedule-img');
+    const downloadLink = document.getElementById('download-link');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const traineeId = input.value.trim();
+        if (!traineeId) return;
+
+        errorBox.style.display = 'none';
+        resultContainer.style.display = 'none';
+        loader.style.display = 'block';
+        submitBtn.disabled = true;
+
+        try {
+            const formData = new FormData();
+            formData.append('trainee_id', traineeId);
+
+            const response = await fetch('/search', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const imgUrl = `/get_schedule_image?pages=${data.pages}&t=${new Date().getTime()}`;
+                scheduleImg.src = imgUrl;
+                downloadLink.href = imgUrl;
+                
+                scheduleImg.onload = () => {
+                    loader.style.display = 'none';
+                    resultContainer.style.display = 'block';
+                    submitBtn.disabled = false;
+                };
+                scheduleImg.onerror = () => {
+                    loader.style.display = 'none';
+                    errorBox.innerText = 'تعذر تحميل صورة الجدول.';
+                    errorBox.style.display = 'block';
+                    submitBtn.disabled = false;
+                };
+            } else {
+                loader.style.display = 'none';
+                errorBox.innerText = data.message;
+                errorBox.style.display = 'block';
+                submitBtn.disabled = false;
+            }
+        } catch (err) {
+            loader.style.display = 'none';
+            errorBox.innerText = 'حدث خطأ في الاتصال بالخادم، يرجى المحاولة لاحقاً.';
+            errorBox.style.display = 'block';
+            submitBtn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>
