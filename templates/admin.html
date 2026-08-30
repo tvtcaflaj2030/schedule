@@ -3,25 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم - معهد الأفلاج</title>
+    <title>لوحة الإدارة - معهد الأفلاج</title>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
         body { background-color: #f0f4f8; color: #2d3748; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-        .card { background: #ffffff; border-radius: 20px; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.05); width: 100%; max-width: 480px; padding: 35px 30px; text-align: center; }
+        .card { background: #ffffff; border-radius: 20px; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.05); width: 100%; max-width: 500px; padding: 35px 30px; text-align: center; }
         h2 { font-size: 20px; color: #0f2d59; margin-bottom: 20px; }
-        input[type="password"], input[type="file"] { width: 100%; padding: 12px; margin-bottom: 15px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14px; }
-        button { width: 100%; padding: 12px; background-color: #00877d; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; }
+        .upload-section { background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 15px; margin-bottom: 18px; text-align: right; }
+        .section-label { font-size: 13.5px; font-weight: bold; color: #0f2d59; margin-bottom: 8px; display: block; }
+        input[type="password"], input[type="file"] { width: 100%; padding: 10px; margin-bottom: 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13.5px; }
+        button { width: 100%; padding: 11px; background-color: #00877d; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
         button:hover { background-color: #006e66; }
         .msg { padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13.5px; }
         .msg-error { background: #fed7d7; color: #9b2c2c; }
         .msg-success { background: #c6f6d5; color: #22543d; }
-        .logout-link { display: inline-block; margin-top: 15px; font-size: 13px; color: #e53e3e; text-decoration: none; }
+        .logout-link { display: inline-block; margin-top: 10px; font-size: 13px; color: #e53e3e; text-decoration: none; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>⚙️ لوحة إدارة الجداول</h2>
+    <h2>⚙️ لوحة إدارة الجداول والغياب</h2>
 
     {% if msg %}
         <div class="msg msg-{{ msg_type }}">{{ msg }}</div>
@@ -34,12 +36,26 @@
             <button type="submit">دخول</button>
         </form>
     {% else %}
-        <form method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="action" value="upload">
-            <label style="display:block; margin-bottom: 8px; font-size: 13px; color: #718096;">اختر ملف PDF الجديد للجداول:</label>
-            <input type="file" name="pdf_file" accept=".pdf" required>
-            <button type="submit">رفع وتحديث الجدول</button>
-        </form>
+        <!-- رفع ملف الجداول -->
+        <div class="upload-section">
+            <span class="section-label">🗓️ تحديث جدول الشعب التدريبية (schedules.pdf):</span>
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="upload_schedule">
+                <input type="file" name="schedule_file" accept=".pdf" required>
+                <button type="submit">رفع وتحديث الجدول</button>
+            </form>
+        </div>
+
+        <!-- رفع ملف الغياب -->
+        <div class="upload-section">
+            <span class="section-label">📑 تحديث تقرير الغياب الأسبوعي (attendance.pdf):</span>
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="upload_attendance">
+                <input type="file" name="attendance_file" accept=".pdf" required>
+                <button type="submit" style="background-color: #2b6cb0;">رفع وتحديث الغياب</button>
+            </form>
+        </div>
+
         <a href="/admin/logout" class="logout-link">تسجيل الخروج</a>
     {% endif %}
 </div>
