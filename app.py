@@ -1,39 +1,36 @@
 import io
 import re
+import os
 import fitz  # PyMuPDF
-from flask import Flask, render_template, request, send_file, jsonify
+from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for, session
 
 app = Flask(__name__)
+app.secret_key = "secret_admin_key_turki_aflaj"
+ADMIN_PASSWORD = "turki2026"  # يمكنك تغيير كلمة المرور من هنا
 PDF_FILE_PATH = "schedules.pdf"
 
 def normalize_digits(text):
-    """تحويل الأرقام العربية إلى إنجليزية"""
     arabic_digits = "٠١٢٣٤٥٦٧٨٩"
     english_digits = "0123456789"
     translation_table = str.maketrans(arabic_digits, english_digits)
     return text.translate(translation_table)
 
 def find_student_pages(pdf_path, trainee_id):
-    """
-    البحث بمطابقة تامة للرقم التدريبي الكامل فقط لمنع استعراض جداول الآخرين
-    """
     clean_id = normalize_digits(trainee_id).strip()
-    
-    # حماية إضافية: رفض الإدخال إذا كان أقل من 9 خانات
     if len(clean_id) < 9 or not clean_id.isdigit():
         return []
 
-    # نمط regex للمطابقة الدقيقة لرقم المتدرب ككيان مستقل
-    # يدعم البحث عن الرقم بشكله المعتاد أو المعكوس
     id_pattern = re.compile(rf'(?<!\d){re.escape(clean_id)}(?!\d)|(?<!\d){re.escape(clean_id[::-1])}(?!\d)')
-    
     matched_pages = []
+    
+    if not os.path.exists(pdf_path):
+        return []
+
     try:
         doc = fitz.open(pdf_path)
         for page_num in range(len(doc)):
             page = doc[page_num]
             clean_page_text = normalize_digits(page.get_text())
-            
             if id_pattern.search(clean_page_text):
                 matched_pages.append(page_num)
         return matched_pages
@@ -53,7 +50,6 @@ def search():
     if not trainee_id:
         return jsonify({"success": False, "message": "يرجى إدخال الرقم التدريبي."})
 
-    # شرط عدم قبول جزء من الرقم
     if len(trainee_id) < 9 or not trainee_id.isdigit():
         return jsonify({"success": False, "message": "يرجى إدخال الرقم التدريبي كاملاً وبشكل صحيح."})
 
@@ -67,7 +63,7 @@ def search():
 @app.route("/get_schedule_image")
 def get_schedule_image():
     pages_param = request.args.get("pages", "")
-    if not pages_param:
+    if not pages_param or not os.path.exists(PDF_FILE_PATH):
         return "معلمات غير صالحة", 400
 
     try:
@@ -108,6 +104,43 @@ def get_schedule_image():
     except Exception as e:
         print(f"Error generating image: {e}")
         return str(e), 500
+
+# مسار لوحة التحكم
+@app.route("/admin", methods=["GET", "POST"])
+def admin():
+    msg = None
+    msg_type = None
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        
+        if action == "login":
+            pwd = request.form.get("password")
+            if pwd == ADMIN_PASSWORD:
+                session["logged_in"] = True
+            else:
+                msg = "كلمة المرور غير صحيحة"
+                msg_type = "error"
+
+        elif action == "upload":
+            if not session.get("logged_in"):
+                return redirect(url_for("admin"))
+            
+            uploaded_file = request.files.get("pdf_file")
+            if uploaded_file and uploaded_file.filename.endswith(".pdf"):
+                uploaded_file.save(PDF_FILE_PATH)
+                msg = "تم رفع وتحديث ملف الجداول بنجاح!"
+                msg_type = "success"
+            else:
+                msg = "يرجى اختيار ملف PDF صالح"
+                msg_type = "error"
+
+    return render_template("admin.html", logged_in=session.get("logged_in", False), msg=msg, msg_type=msg_type)
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("logged_in", None)
+    return redirect(url_for("admin"))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
