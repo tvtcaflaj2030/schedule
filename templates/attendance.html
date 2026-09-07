@@ -8,141 +8,73 @@
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
         body { background-color: #f0f4f8; color: #2d3748; min-height: 100vh; padding: 30px 15px; display: flex; justify-content: center; align-items: center; }
-        .card { background: #ffffff; border-radius: 20px; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.05); width: 100%; max-width: 650px; padding: 35px 25px; text-align: center; }
-        h1 { font-size: 21px; color: #0f2d59; font-weight: 800; margin-bottom: 6px; }
-        p.sub { color: #718096; font-size: 13.5px; margin-bottom: 22px; }
+        .card { background: #ffffff; border-radius: 24px; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.06); width: 100%; max-width: 550px; padding: 50px 30px; text-align: center; }
         
-        .form-group { display: flex; flex-direction: row-reverse; gap: 8px; margin-bottom: 15px; }
-        input[type="text"] { flex: 1; padding: 12px 16px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14.5px; text-align: center; outline: none; }
-        input[type="text"]:focus { border-color: #c53030; }
-        button { padding: 12px 24px; background-color: #c53030; color: white; border: none; border-radius: 10px; font-size: 14.5px; font-weight: bold; cursor: pointer; }
-        button:hover { background-color: #9b2c2c; }
+        .icon-box {
+            font-size: 55px;
+            color: #e53e3e;
+            margin-bottom: 25px;
+            animation: pulse 2s infinite ease-in-out;
+        }
 
-        .loader { display: none; margin: 15px auto; border: 3px solid #f3f3f3; border-top: 3px solid #c53030; border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .alert { display: none; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; }
-        .alert-error { background-color: #fed7d7; color: #9b2c2c; }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.08); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.9; }
+        }
 
-        /* نتائج الغياب */
-        .result-box { display: none; margin-top: 25px; text-align: right; }
-        .student-header { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; }
-        .student-header div { font-size: 13.5px; font-weight: bold; color: #0f2d59; }
+        .alert-message {
+            font-size: 26px;
+            font-weight: 900;
+            color: #c53030;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
 
-        .table-wrapper { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; }
-        table { width: 100%; border-collapse: collapse; text-align: center; font-size: 13px; }
-        th { background: #f7fafc; color: #4a5568; padding: 12px 10px; border-bottom: 2px solid #edf2f7; }
-        td { padding: 12px 10px; border-bottom: 1px solid #edf2f7; }
-        
-        .badge { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
-        .badge-safe { background: #c6f6d5; color: #22543d; }
-        .badge-warn1 { background: #fefcbf; color: #744210; }
-        .badge-warn2 { background: #feebc8; color: #7b341e; }
-        .badge-danger { background: #fed7d7; color: #742a2a; }
+        .sub-text {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 35px;
+        }
 
-        .back-link { display: inline-block; margin-top: 25px; color: #718096; text-decoration: none; font-size: 13px; font-weight: bold; }
-        .back-link:hover { color: #1a202c; }
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            background-color: #00877d;
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 14px;
+            transition: 0.25s ease;
+        }
+
+        .back-btn:hover {
+            background-color: #006e66;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div style="font-size: 38px; color: #c53030; margin-bottom: 10px;"><i class="fa-solid fa-clock-rotate-left"></i></div>
-    <h1>استعلام نسب الغياب للمقررات</h1>
-    <p class="sub">نسبة الحرمان المحددة نظاماً هي 20% لكل مقرر</p>
-
-    <form id="attendance-form">
-        <div class="form-group">
-            <button type="submit" id="submit-btn">استعلام</button>
-            <input type="text" id="trainee_id" placeholder="أدخل الرقم التدريبي" required autocomplete="off">
-        </div>
-    </form>
-
-    <div class="loader" id="loader"></div>
-    <div class="alert alert-error" id="error-box"></div>
-
-    <div class="result-box" id="result-box">
-        <div class="student-header">
-            <div>اسم المتدرب: <span id="st-name" style="color:#00877d;"></span></div>
-            <div>الرقم التدريبي: <span id="st-id" style="color:#00877d;"></span></div>
-        </div>
-
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th style="text-align: right; width: 45%;">اسم المقرر</th>
-                        <th>نسبة الغياب</th>
-                        <th>الحد المسموح</th>
-                        <th>الحالة</th>
-                    </tr>
-                </thead>
-                <tbody id="table-body"></tbody>
-            </table>
-        </div>
+    <div class="icon-box">
+        <i class="fa-solid fa-screwdriver-wrench"></i>
+    </div>
+    
+    <div class="alert-message">
+        جاري العمل على تطوير هذه الصفحة قريباً
     </div>
 
-    <a href="/" class="back-link">⬅️ العودة للرئيسية</a>
+    <p class="sub-text">سيتم إتاحة خدمة استعلام نسب الغياب والمقررات فور اكتمال التحديثات الفنية.</p>
+
+    <a href="/" class="back-btn">
+        <i class="fa-solid fa-arrow-right"></i>
+        <span>العودة للصفحة الرئيسية</span>
+    </a>
 </div>
 
-<script>
-    const form = document.getElementById('attendance-form');
-    const input = document.getElementById('trainee_id');
-    const loader = document.getElementById('loader');
-    const errorBox = document.getElementById('error-box');
-    const resultBox = document.getElementById('result-box');
-    const tableBody = document.getElementById('table-body');
-    const stName = document.getElementById('st-name');
-    const stId = document.getElementById('st-id');
-
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const traineeId = input.value.trim();
-        if (!traineeId) return;
-
-        errorBox.style.display = 'none';
-        resultBox.style.display = 'none';
-        loader.style.display = 'block';
-
-        try {
-            const formData = new FormData();
-            formData.append('trainee_id', traineeId);
-            const res = await fetch('/search_attendance', { method: 'POST', body: formData });
-            const data = await res.json();
-            loader.style.display = 'none';
-
-            if (data.success) {
-                stName.innerText = data.data.student_name;
-                stId.innerText = data.data.student_id;
-                tableBody.innerHTML = '';
-
-                data.data.courses.forEach(c => {
-                    let badgeClass = 'badge-safe';
-                    if (c.percentage >= 20.0 || c.status === 'حرمان') badgeClass = 'badge-danger';
-                    else if (c.percentage >= 15.0) badgeClass = 'badge-warn2';
-                    else if (c.percentage >= 10.0) badgeClass = 'badge-warn1';
-
-                    const row = `
-                        <tr>
-                            <td style="text-align: right; font-weight:600;">${c.course_name}</td>
-                            <td style="font-weight:bold; color:${c.percentage >= 20 ? '#e53e3e' : '#2d3748'};">${c.percentage}%</td>
-                            <td style="color:#718096;">20%</td>
-                            <td><span class="badge ${badgeClass}">${c.status}</span></td>
-                        </tr>
-                    `;
-                    tableBody.insertAdjacentHTML('beforeend', row);
-                });
-
-                resultBox.style.display = 'block';
-            } else {
-                errorBox.innerText = data.message;
-                errorBox.style.display = 'block';
-            }
-        } catch (err) {
-            loader.style.display = 'none';
-            errorBox.innerText = 'حدث خطأ في الاتصال بالسيرفر.';
-            errorBox.style.display = 'block';
-        }
-    });
-</script>
 </body>
 </html>
