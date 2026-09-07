@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>خدمات المتدربين - معهد الأفلاج</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        body { background-color: #f4f7f9; color: #2d3748; min-height: 100vh; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; }
+        .header { text-align: center; margin-bottom: 35px; }
+        .header h1 { font-size: 26px; color: #0f2d59; font-weight: 800; margin-bottom: 8px; }
+        .header p { color: #718096; font-size: 14px; }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 22px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        @media (max-width: 768px) {
+            .services-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        }
+        @media (max-width: 480px) {
+            .services-grid { grid-template-columns: 1fr; }
+        }
+
+        .service-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 30px 15px;
+            text-align: center;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+            border: 1px solid #edf2f7;
+            transition: all 0.25s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(15, 45, 89, 0.1);
+            border-color: #cbd5e1;
+        }
+
+        .icon-circle {
+            width: 80px;
+            height: 80px;
+            background-color: #0f5451;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 18px;
+            color: #ffffff;
+            font-size: 30px;
+            box-shadow: 0 4px 12px rgba(15, 84, 81, 0.25);
+            transition: 0.25s ease;
+        }
+
+        .service-card:hover .icon-circle {
+            background-color: #00877d;
+            transform: scale(1.05);
+        }
+
+        .service-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #0b4543;
+            line-height: 1.4;
+        }
+
+        .back-btn {
+            margin-top: 40px;
+            text-decoration: none;
+            color: #4a5568;
+            font-size: 13.5px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            background: #e2e8f0;
+            border-radius: 20px;
+            transition: 0.2s ease;
+        }
+        .back-btn:hover {
+            background: #cbd5e1;
+            color: #1a202c;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>بوابة خدمات المتدربين</h1>
+        <p>الوصول السريع لجميع منصات وخدمات التدريب التقني</p>
+    </div>
+
+    <div class="services-grid">
+        {% for s in services %}
+        <a href="{{ s.url }}" target="_blank" rel="noopener noreferrer" class="service-card">
+            <div class="icon-circle">
+                <i class="fa-solid {{ s.icon }}"></i>
+            </div>
+            <span class="service-title">{{ s.title }}</span>
+        </a>
+        {% endfor %}
+    </div>
+
+    <a href="/" class="back-btn">⬅️ العودة إلى صفحة الاستعلام</a>
+
+</body>
+</html>
