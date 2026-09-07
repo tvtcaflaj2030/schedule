@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, send_file, jsonify, redirect,
 
 app = Flask(__name__)
 app.secret_key = "secret_admin_key_turki_aflaj"
-ADMIN_PASSWORD = "turki2026"
+ADMIN_PASSWORD = "."
 PDF_FILE_PATH = "schedules.pdf"
 SERVICES_FILE = "services.json"
 
