@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة متدربي معهد الأفلاج</title>
+    <title>المعهد الصناعي الثانوي بالأفلاج</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
         body { background-color: #f0f4f8; color: #2d3748; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 25px; }
         .main-card { background: #ffffff; border-radius: 24px; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.06); width: 100%; max-width: 580px; padding: 40px 30px 25px; text-align: center; }
+        
         .logo-area { margin-bottom: 25px; }
-        .logo-area h1 { font-size: 24px; color: #0f2d59; font-weight: 800; margin-bottom: 6px; }
+        .logo-area h1 { font-size: 26px; color: #0f2d59; font-weight: 800; margin-bottom: 6px; }
         .logo-area p { color: #718096; font-size: 14px; }
         
         .nav-cards { display: flex; flex-direction: column; gap: 18px; margin-top: 25px; }
@@ -50,24 +51,25 @@
         .btn-text p { font-size: 12.5px; color: #718096; }
         .arrow-icon { font-size: 18px; color: #a0aec0; }
 
-        /* التذييل الجديد: توسيط الرسالة وفصلها في سطر مستقل */
-        .footer-box {
+        /* منطقة التذييل المحدثة */
+        .footer-divider {
             margin-top: 35px;
             border-top: 1px dashed #e2e8f0;
-            padding-top: 18px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            text-align: center;
+            padding-top: 16px;
+            text-align: center !important;
         }
-        .footer-note {
-            font-size: 12.5px;
+        .footer-note-center {
+            display: block;
+            text-align: center !important;
+            font-size: 12px;
             color: #718096;
             font-weight: 600;
+            margin-bottom: 10px;
         }
-        .dev-credits {
-            font-size: 10px;
+        .footer-credits-center {
+            display: block;
+            text-align: center !important;
+            font-size: 10.5px;
             color: #a0aec0;
             direction: ltr;
             font-family: monospace;
@@ -79,52 +81,52 @@
 
 <div class="main-card">
     <div class="logo-area">
-        <h1>معهد التدريب الوطني بالأفلاج</h1>
-        <p>المنصة الإلكترونية الموحدة لخدمات المتدربين</p>
+        <h1>المعهد الصناعي الثانوي بالأفلاج</h1>
+        <p>المنصة الإلكترونية المطورة لخدمات المتدربين</p>
     </div>
 
     <div class="nav-cards">
         <!-- 1. استعلام الجدول التدريبي -->
         <a href="/schedule" class="portal-btn">
+            <i class="fa-solid fa-chevron-left arrow-icon"></i>
             <div class="btn-content">
-                <div class="btn-icon icon-sched"><i class="fa-solid fa-calendar-day"></i></div>
                 <div class="btn-text">
                     <h3>استعلام الجدول التدريبي</h3>
                     <p>استعراض وتحميل جدول الحصص الأسبوعي</p>
                 </div>
+                <div class="btn-icon icon-sched"><i class="fa-solid fa-calendar-day"></i></div>
             </div>
-            <i class="fa-solid fa-chevron-left arrow-icon"></i>
         </a>
 
         <!-- 2. خدمات المتدربين -->
         <a href="/services" class="portal-btn">
+            <i class="fa-solid fa-chevron-left arrow-icon"></i>
             <div class="btn-content">
-                <div class="btn-icon icon-serv"><i class="fa-solid fa-grip"></i></div>
                 <div class="btn-text">
                     <h3>خدمات المتدربين</h3>
                     <p>منصة رايات، التسجيل الذاتي، وخدمات الدعم</p>
                 </div>
+                <div class="btn-icon icon-serv"><i class="fa-solid fa-grip"></i></div>
             </div>
-            <i class="fa-solid fa-chevron-left arrow-icon"></i>
         </a>
 
         <!-- 3. استعلام نسب الغياب -->
         <a href="/attendance" class="portal-btn">
+            <i class="fa-solid fa-chevron-left arrow-icon"></i>
             <div class="btn-content">
-                <div class="btn-icon icon-att"><i class="fa-solid fa-user-clock"></i></div>
                 <div class="btn-text">
                     <h3>استعلام نسب الغياب للمقررات</h3>
                     <p>متابعة ساعات ونسب الحرمان من أصل 20%</p>
                 </div>
+                <div class="btn-icon icon-att"><i class="fa-solid fa-user-clock"></i></div>
             </div>
-            <i class="fa-solid fa-chevron-left arrow-icon"></i>
         </a>
     </div>
 
-    <!-- التذييل المحدث -->
-    <div class="footer-box">
-        <span class="footer-note">هذا النموذج خاص بمتدربي معهد الأفلاج</span>
-        <span class="dev-credits">⚡ Powered by ENG.TURKI</span>
+    <!-- التذييل المستقل والمتوسط -->
+    <div class="footer-divider">
+        <span class="footer-note-center">هذا النموذج خاص بمتدربي معهد الأفلاج</span>
+        <span class="footer-credits-center">Powered by ENG.TURKI</span>
     </div>
 </div>
 
