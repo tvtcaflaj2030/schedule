@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, send_file, jsonify, redirect,
 
 app = Flask(__name__)
 app.secret_key = "secret_admin_key_turki_aflaj"
-ADMIN_PASSWORD = "turki2026"
+ADMIN_PASSWORD = "."
 
 SCHEDULES_PDF = "schedules.pdf"
 ATTENDANCE_PDF = "attendance.pdf"
@@ -216,12 +216,14 @@ def get_schedule_image():
         return str(e), 500
 
 @app.route("/admin", methods=["GET", "POST"])
+@app.route("/admin", methods=["GET", "POST"])
 def admin():
     msg = None
     msg_type = None
 
     if request.method == "POST":
         action = request.form.get("action")
+        
         if action == "login":
             if request.form.get("password") == ADMIN_PASSWORD:
                 session["logged_in"] = True
@@ -230,34 +232,58 @@ def admin():
                 msg_type = "error"
 
         elif action == "upload_schedule":
-            if not session.get("logged_in"): return redirect(url_for("admin"))
+            if not session.get("logged_in"): 
+                return redirect(url_for("admin"))
             file = request.files.get("pdf_file")
             if file and file.filename.endswith(".pdf"):
                 file.save(SCHEDULES_PDF)
                 msg = "تم تحديث ملف الجداول بنجاح!"
                 msg_type = "success"
+            else:
+                msg = "يرجى اختيار ملف PDF صالح للجدول"
+                msg_type = "error"
 
         elif action == "upload_attendance":
-            if not session.get("logged_in"): return redirect(url_for("admin"))
+            if not session.get("logged_in"): 
+                return redirect(url_for("admin"))
             file = request.files.get("pdf_file")
             if file and file.filename.endswith(".pdf"):
                 file.save(ATTENDANCE_PDF)
                 msg = "تم تحديث ملف الغياب بنجاح!"
                 msg_type = "success"
+            else:
+                msg = "يرجى اختيار ملف PDF صالح لتقرير الغياب"
+                msg_type = "error"
 
         elif action == "save_services":
-            if not session.get("logged_in"): return redirect(url_for("admin"))
+            if not session.get("logged_in"): 
+                return redirect(url_for("admin"))
+            
             titles = request.form.getlist("title[]")
             urls = request.form.getlist("url[]")
             icons = request.form.getlist("icon[]")
             
-            updated_services = [
-                {"title": t.strip(), "url": u.strip(), "icon": i.strip() if i.strip() else "fa-link"}
-                for t, u, i in zip(titles, urls, icons) if t.strip() and u.strip()
-            ]
-            save_services(updated_services)
-            msg = "تم حفظ خدمات المتدربين بنجاح!"
+            updated = []
+            for t, u, i in zip(titles, urls, icons):
+                t_clean = t.strip()
+                u_clean = u.strip()
+                i_clean = i.strip() if i.strip() else "fa-link"
+                if t_clean and u_clean:
+                    updated.append({"title": t_clean, "url": u_clean, "icon": i_clean})
+            
+            save_services(updated)
+            msg = "تم حفظ خدمات المتدربين بنجاح وتحديث القائمة!"
             msg_type = "success"
+
+    # جلب الخدمات دائماً عند الدخول لعرضها
+    current_services = load_services()
+    return render_template(
+        "admin.html", 
+        logged_in=session.get("logged_in", False), 
+        msg=msg, 
+        msg_type=msg_type, 
+        services=current_services
+    )
 
     services_list = load_services() if session.get("logged_in") else []
     return render_template("admin.html", logged_in=session.get("logged_in", False), msg=msg, msg_type=msg_type, services=services_list)
