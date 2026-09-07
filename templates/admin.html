@@ -12,7 +12,6 @@
         .card { background: #ffffff; border-radius: 16px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05); padding: 25px; margin-bottom: 22px; text-align: right; }
         h2 { font-size: 17px; color: #0f2d59; margin-bottom: 15px; border-bottom: 2px solid #edf2f7; padding-bottom: 8px; }
         input[type="password"], input[type="file"], input[type="text"] { width: 100%; padding: 10px 12px; margin-bottom: 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13.5px; }
-        input:focus { border-color: #00877d; outline: none; }
         button { padding: 10px 18px; background-color: #00877d; color: white; border: none; border-radius: 8px; font-size: 13.5px; font-weight: bold; cursor: pointer; }
         button:hover { background-color: #006e66; }
         .msg { padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 13.5px; text-align: center; }
@@ -20,15 +19,9 @@
         .msg-success { background: #c6f6d5; color: #22543d; }
         .logout-bar { text-align: left; margin-bottom: 12px; }
         .logout-link { color: #e53e3e; font-size: 13px; text-decoration: none; font-weight: bold; }
-        
-        /* عناصر صفوف الخدمات */
-        .service-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
-        .service-row input { margin-bottom: 0; }
+        .service-row { display: flex; gap: 8px; margin-bottom: 10px; }
         .btn-del { background-color: #e53e3e; padding: 10px 14px; border-radius: 8px; }
-        .btn-del:hover { background-color: #c53030; }
         .btn-add { background-color: #4a5568; margin-bottom: 15px; font-size: 12.5px; }
-        .btn-add:hover { background-color: #2d3748; }
-        .hint-text { font-size: 11.5px; color: #718096; margin-bottom: 12px; }
     </style>
 </head>
 <body>
@@ -51,37 +44,44 @@
 
         {% if msg %}<div class="msg msg-{{ msg_type }}">{{ msg }}</div>{% endif %}
 
-        <!-- تحديث الجدول الدراسي -->
+        <!-- 1. رفع الجداول -->
         <div class="card">
-            <h2>🗓️ تحديث ملف الجداول (PDF)</h2>
+            <h2>🗓️ تحديث ملف الجداول التدريبية (schedules.pdf)</h2>
             <form method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="upload">
+                <input type="hidden" name="action" value="upload_schedule">
                 <input type="file" name="pdf_file" accept=".pdf" required>
-                <button type="submit">رفع وتحديث الجدول</button>
+                <button type="submit">رفع وتحديث الجداول</button>
             </form>
         </div>
 
-        <!-- إدارة روابط خدمات المتدربين -->
+        <!-- 2. رفع تقرير الغياب -->
+        <div class="card">
+            <h2>📑 تحديث تقرير الغياب للمقررات (attendance.pdf)</h2>
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="upload_attendance">
+                <input type="file" name="pdf_file" accept=".pdf" required>
+                <button type="submit" style="background-color: #c53030;">رفع وتحديث الغياب</button>
+            </form>
+        </div>
+
+        <!-- 3. إدارة الخدمات -->
         <div class="card">
             <h2>🔗 إدارة روابط "خدمات المتدربين"</h2>
-            <p class="hint-text">يمكنك تعديل أسماء الخدمات، روابطها التشعبية، ورمز الأيقونة من مكتبة Font Awesome (مثال: fa-link, fa-envelope, fa-key).</p>
-            
             <form method="POST">
                 <input type="hidden" name="action" value="save_services">
                 <div id="services-container">
                     {% for item in services %}
                     <div class="service-row">
                         <input type="text" name="title[]" value="{{ item.title }}" placeholder="اسم الخدمة" required style="flex: 2;">
-                        <input type="text" name="url[]" value="{{ item.url }}" placeholder="الرابط التشعبي" required style="flex: 3;">
-                        <input type="text" name="icon[]" value="{{ item.icon }}" placeholder="كود الأيقونة" style="flex: 1.5;">
+                        <input type="text" name="url[]" value="{{ item.url }}" placeholder="الرابط" required style="flex: 3;">
+                        <input type="text" name="icon[]" value="{{ item.icon }}" placeholder="الأيقونة" style="flex: 1.5;">
                         <button type="button" class="btn-del" onclick="this.parentElement.remove()">✕</button>
                     </div>
                     {% endfor %}
                 </div>
-
-                <button type="button" class="btn-add" onclick="addServiceRow()">+ إضافة خدمة جديدة</button>
+                <button type="button" class="btn-add" onclick="addServiceRow()">+ إضافة خدمة</button>
                 <br>
-                <button type="submit" style="background-color: #0f5451; width: 100%; padding: 12px;">💾 حفظ التعديلات للخدمات</button>
+                <button type="submit" style="background-color: #0f5451; width: 100%; padding: 12px;">💾 حفظ تعديلات الخدمات</button>
             </form>
         </div>
     {% endif %}
@@ -95,7 +95,7 @@ function addServiceRow() {
     div.innerHTML = `
         <input type="text" name="title[]" placeholder="اسم الخدمة" required style="flex: 2;">
         <input type="text" name="url[]" placeholder="https://..." required style="flex: 3;">
-        <input type="text" name="icon[]" value="fa-link" placeholder="كود الأيقونة" style="flex: 1.5;">
+        <input type="text" name="icon[]" value="fa-link" placeholder="الأيقونة" style="flex: 1.5;">
         <button type="button" class="btn-del" onclick="this.parentElement.remove()">✕</button>
     `;
     container.appendChild(div);
