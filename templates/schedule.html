@@ -8,13 +8,13 @@
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
         body { background-color: #f0f4f8; color: #2d3748; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-        .container { background: #ffffff; border-radius: 20px; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.05); width: 100%; max-width: 500px; padding: 35px 25px 20px; position: relative; text-align: center; }
+        .container { background: #ffffff; border-radius: 20px; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.05); width: 100%; max-width: 500px; padding: 35px 25px 25px; position: relative; text-align: center; }
         .calendar-icon { font-size: 38px; color: #00877d; margin-bottom: 10px; }
         h1 { font-size: 21px; color: #0f2d59; font-weight: 800; margin-bottom: 6px; }
         p.subtitle { color: #718096; font-size: 13.5px; margin-bottom: 22px; }
         .form-group { display: flex; flex-direction: row-reverse; gap: 8px; margin-bottom: 15px; }
         input[type="text"] { flex: 1; padding: 12px 16px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14.5px; text-align: center; outline: none; }
-        input[type="text"]:focus { border-color: #00877d; }
+        input[type="text"]:focus { border-color: #00877d; box-shadow: 0 0 0 3px rgba(0, 135, 125, 0.12); }
         button { padding: 12px 24px; background-color: #00877d; color: white; border: none; border-radius: 10px; font-size: 14.5px; font-weight: bold; cursor: pointer; }
         button:hover { background-color: #006e66; }
         .loader { display: none; margin: 15px auto; border: 3px solid #f3f3f3; border-top: 3px solid #00877d; border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; }
@@ -25,6 +25,11 @@
         .image-wrapper img { width: 100%; height: auto; display: block; }
         .btn-download { display: inline-block; padding: 10px 20px; background-color: #00877d; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 13.5px; margin-bottom: 10px; }
         .back-link { display: inline-block; margin-top: 20px; color: #718096; text-decoration: none; font-size: 13px; font-weight: bold; }
+        .back-link:hover { color: #0f2d59; }
+        .card-footer-notes { margin-top: 25px; padding-top: 12px; border-top: 1px dashed #e2e8f0; display: flex; flex-direction: column; gap: 3px; }
+        .footer-note-main { font-size: 12px; color: #718096; font-weight: 600; }
+        .footer-note-sub { font-size: 11px; color: #e53e3e; font-weight: 700; }
+        .dev-credits { position: fixed; bottom: 10px; left: 15px; font-size: 10px; font-weight: bold; color: #a0aec0; direction: ltr; font-family: monospace; z-index: 9999; pointer-events: none; opacity: 0.85; }
     </style>
 </head>
 <body>
@@ -32,7 +37,7 @@
 <div class="container">
     <div class="calendar-icon"><i class="fa-solid fa-calendar-check"></i></div>
     <h1>استعلام الجدول التدريبي</h1>
-    <p class="subtitle">المعهد الصناعي الثانوي بالأفلاج</p>
+    <p class="subtitle">معهد التدريب الوطني بالأفلاج</p>
 
     <form id="search-form">
         <div class="form-group">
@@ -53,11 +58,19 @@
 
     <br>
     <a href="/" class="back-link">⬅️ العودة للرئيسية</a>
+
+    <div class="card-footer-notes">
+        <span class="footer-note-main">هذا النموذج خاص بمتدربي معهد الأفلاج</span>
+        <span class="footer-note-sub">نسخة أولية</span>
+    </div>
 </div>
+
+<div class="dev-credits">⚡ Powered by ENG.TURKI</div>
 
 <script>
     const form = document.getElementById('search-form');
     const input = document.getElementById('trainee_id');
+    const submitBtn = document.getElementById('submit-btn');
     const loader = document.getElementById('loader');
     const errorBox = document.getElementById('error-box');
     const resultBox = document.getElementById('result-box');
@@ -72,6 +85,7 @@
         errorBox.style.display = 'none';
         resultBox.style.display = 'none';
         loader.style.display = 'block';
+        submitBtn.disabled = true;
 
         try {
             const formData = new FormData();
@@ -80,6 +94,8 @@
             const data = await response.json();
 
             loader.style.display = 'none';
+            submitBtn.disabled = false;
+
             if (data.success) {
                 const imgUrl = `/get_schedule_image?pages=${data.pages}&t=${new Date().getTime()}`;
                 scheduleImg.src = imgUrl;
@@ -91,10 +107,11 @@
             }
         } catch (err) {
             loader.style.display = 'none';
+            submitBtn.disabled = false;
             errorBox.innerText = 'تعذر الاتصال بالخادم.';
             errorBox.style.display = 'block';
         }
     });
-      </script>
+</script>
 </body>
 </html>
