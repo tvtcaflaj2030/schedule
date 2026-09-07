@@ -1,7 +1,7 @@
 import io
 import re
 import os
-import sqlite3
+import json
 import fitz  # PyMuPDF
 from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for, session
 
@@ -9,52 +9,46 @@ app = Flask(__name__)
 app.secret_key = "secret_admin_key_turki_aflaj"
 ADMIN_PASSWORD = "turki2026"
 
-SCHEDULES_PDF = "schedules.pdf"
-ATTENDANCE_PDF = "attendance.pdf"
-DB_PATH = "portal_data.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SCHEDULES_PDF = os.path.join(BASE_DIR, "schedules.pdf")
+ATTENDANCE_PDF = os.path.join(BASE_DIR, "attendance.pdf")
+SERVICES_FILE = os.path.join(BASE_DIR, "services_data.json")
 
-def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS services (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                url TEXT NOT NULL,
-                icon TEXT NOT NULL
-            )
-        ''')
-        # إدخال الخدمات الافتراضية لأول مرة فقط إن كان الجدول فارغاً
-        cursor.execute("SELECT COUNT(*) FROM services")
-        if cursor.fetchone()[0] == 0:
-            defaults = [
-                ("التسجيل الذاتي للمتدربين", "https://ugate.tvtc.gov.sa/AFrontGate/", "fa-id-card"),
-                ("الخدمات الذاتية للمتدربين", "https://rayat.tvtc.gov.sa", "fa-user-gear"),
-                ("عرض جدول المتدرب", "/schedule", "fa-table-cells"),
-                ("هل نسيت كلمة المرور ؟", "https://iam.tvtc.gov.sa", "fa-key"),
-                ("أمن حسابك", "https://iam.tvtc.gov.sa", "fa-shield-halved"),
-                ("البريد الإلكتروني", "https://outlook.office.com", "fa-envelope")
-            ]
-            cursor.executemany("INSERT INTO services (title, url, icon) VALUES (?, ?, ?)", defaults)
-        conn.commit()
+DEFAULT_SERVICES = [
+    {"title": "التسجيل الذاتي للمتدربين", "url": "https://ugate.tvtc.gov.sa/AFrontGate/", "icon": "fa-id-card"},
+    {"title": "الخدمات الذاتية للمتدربين", "url": "https://rayat.tvtc.gov.sa", "icon": "fa-user-gear"},
+    {"title": "عرض جدول المتدرب", "url": "/schedule", "icon": "fa-table-cells"},
+    {"title": "هل نسيت كلمة المرور ؟", "url": "https://iam.tvtc.gov.sa", "icon": "fa-key"},
+    {"title": "أمن حسابك", "url": "https://iam.tvtc.gov.sa", "icon": "fa-shield-halved"},
+    {"title": "البريد الإلكتروني", "url": "https://outlook.office.com", "icon": "fa-envelope"}
+]
 
-init_db()
+def load_services():
+    """قراءة الخدمات المحفوظة وضمان عدم فقدانها"""
+    if not os.path.exists(SERVICES_FILE):
+        save_services(DEFAULT_SERVICES)
+        return DEFAULT_SERVICES
+    try:
+        with open(SERVICES_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list) and len(data) > 0:
+                return data
+            return DEFAULT_SERVICES
+    except Exception as e:
+        print(f"Error loading services: {e}")
+        return DEFAULT_SERVICES
 
-def get_services():
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, title, url, icon FROM services ORDER BY id ASC")
-        rows = cursor.fetchall()
-        return [{"id": r[0], "title": r[1], "url": r[2], "icon": r[3]} for r in rows]
-
-def update_all_services(services_list):
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM services")
-        for s in services_list:
-            cursor.execute("INSERT INTO services (title, url, icon) VALUES (?, ?, ?)", 
-                           (s["title"], s["url"], s["icon"]))
-        conn.commit()
+def save_services(data):
+    """حفظ فوري ومباشر على القرص مع ضمان تفريغ الذاكرة المؤقتة"""
+    try:
+        with open(SERVICES_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+            f.flush()
+            os.fsync(f.fileno())
+        return True
+    except Exception as e:
+        print(f"Error saving services: {e}")
+        return False
 
 def normalize_digits(text):
     arabic_digits = "٠١٢٣٤٥٦٧٨٩"
@@ -82,7 +76,7 @@ def find_student_pages(pdf_path, trainee_id):
     except Exception:
         return []
 
-# --- المسارات ---
+# --- مسارات الواجهة ---
 
 @app.route("/")
 def home():
@@ -98,7 +92,7 @@ def attendance_page():
 
 @app.route("/services")
 def services():
-    current_services = get_services()
+    current_services = load_services()
     return render_template("services.html", services=current_services)
 
 @app.route("/search_schedule", methods=["POST"])
@@ -151,6 +145,8 @@ def get_schedule_image():
     except Exception as e:
         return str(e), 500
 
+# --- لوحة التحكم ---
+
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     msg = None
@@ -171,7 +167,7 @@ def admin():
             file = request.files.get("pdf_file")
             if file and file.filename.endswith(".pdf"):
                 file.save(SCHEDULES_PDF)
-                msg = "تم تحديث ملف الجداول بنجاح!"
+                msg = "تم رفع وتحديث ملف الجداول بنجاح!"
                 msg_type = "success"
 
         elif action == "upload_attendance":
@@ -179,35 +175,32 @@ def admin():
             file = request.files.get("pdf_file")
             if file and file.filename.endswith(".pdf"):
                 file.save(ATTENDANCE_PDF)
-                msg = "تم تحديث ملف تقرير الغياب بنجاح!"
+                msg = "تم رفع وتحديث تقرير الغياب بنجاح!"
                 msg_type = "success"
 
         elif action == "save_services":
             if not session.get("logged_in"): return redirect(url_for("admin"))
             
-            titles = request.form.getlist("title[]")
-            urls = request.form.getlist("url[]")
-            icons = request.form.getlist("icon[]")
-            
-            cleaned = []
-            for t, u, i in zip(titles, urls, icons):
-                if t.strip() and u.strip():
-                    cleaned.append({
-                        "title": t.strip(),
-                        "url": u.strip(),
-                        "icon": i.strip() if i.strip() else "fa-link"
-                    })
-            
-            update_all_services(cleaned)
-            msg = "تم حفظ وتثبيت الخدمات بنجاح في قاعدة البيانات!"
-            msg_type = "success"
+            raw_payload = request.form.get("services_payload")
+            try:
+                parsed_data = json.loads(raw_payload)
+                if isinstance(parsed_data, list) and len(parsed_data) > 0:
+                    save_services(parsed_data)
+                    msg = "تم حفظ وتثبيت الخدمات بنجاح ولن تتغير بعد الآن!"
+                    msg_type = "success"
+                else:
+                    msg = "قائمة الخدمات فارغة، لم يتم الحفظ."
+                    msg_type = "error"
+            except Exception as err:
+                msg = f"خطأ أثناء معالجة البيانات: {err}"
+                msg_type = "error"
 
-    services_data = get_services() if session.get("logged_in") else []
+    current_services = load_services() if session.get("logged_in") else []
     return render_template("admin.html", 
                            logged_in=session.get("logged_in", False), 
                            msg=msg, 
                            msg_type=msg_type, 
-                           services=services_data)
+                           services=current_services)
 
 @app.route("/admin/logout")
 def admin_logout():
