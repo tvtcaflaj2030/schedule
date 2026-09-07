@@ -8,7 +8,7 @@
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
         body { background-color: #f0f4f8; color: #2d3748; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 25px; }
-        .main-card { background: #ffffff; border-radius: 24px; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.06); width: 100%; max-width: 580px; padding: 40px 30px 25px; text-align: center; position: relative; }
+        .main-card { background: #ffffff; border-radius: 24px; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.06); width: 100%; max-width: 580px; padding: 40px 30px 35px; text-align: center; position: relative; }
         
         .logo-area { margin-bottom: 25px; }
         .logo-area h1 { font-size: 26px; color: #0f2d59; font-weight: 800; margin-bottom: 6px; }
@@ -42,6 +42,7 @@
             justify-content: center;
             font-size: 24px;
             color: #ffffff;
+            flex-shrink: 0;
         }
         .icon-sched { background: #0f5451; }
         .icon-serv { background: #2b6cb0; }
@@ -51,7 +52,6 @@
         .btn-text p { font-size: 12.5px; color: #718096; }
         .arrow-icon { font-size: 18px; color: #a0aec0; }
 
-        /* منطقة التذييل المطابقة لتصميمك */
         .footer-box {
             margin-top: 35px;
             border-top: 1px dashed #e2e8f0;
@@ -64,15 +64,18 @@
             color: #718096;
             font-weight: 600;
         }
+        
+        /* التنسيق الأول الأصلي والواضح */
         .dev-credits {
             position: absolute;
-            bottom: 8px;
-            left: 14px;
-            font-size: 8.5px;
+            bottom: 12px;
+            left: 18px;
+            font-size: 10px;
+            font-weight: bold;
             color: #a0aec0;
-            font-family: Arial, sans-serif;
-            font-weight: 600;
             direction: ltr;
+            font-family: monospace;
+            letter-spacing: 0.5px;
         }
     </style>
 </head>
@@ -87,48 +90,46 @@
     <div class="nav-cards">
         <!-- 1. استعلام الجدول التدريبي -->
         <a href="/schedule" class="portal-btn">
-            <i class="fa-solid fa-chevron-left arrow-icon"></i>
             <div class="btn-content">
+                <div class="btn-icon icon-sched"><i class="fa-solid fa-calendar-day"></i></div>
                 <div class="btn-text">
                     <h3>استعلام الجدول التدريبي</h3>
                     <p>استعراض وتحميل جدول الحصص الأسبوعي</p>
                 </div>
-                <div class="btn-icon icon-sched"><i class="fa-solid fa-calendar-day"></i></div>
             </div>
+            <i class="fa-solid fa-chevron-left arrow-icon"></i>
         </a>
 
         <!-- 2. خدمات المتدربين -->
         <a href="/services" class="portal-btn">
-            <i class="fa-solid fa-chevron-left arrow-icon"></i>
             <div class="btn-content">
+                <div class="btn-icon icon-serv"><i class="fa-solid fa-grip"></i></div>
                 <div class="btn-text">
                     <h3>خدمات المتدربين</h3>
                     <p>منصة رايات، التسجيل الذاتي، وخدمات الدعم</p>
                 </div>
-                <div class="btn-icon icon-serv"><i class="fa-solid fa-grip"></i></div>
             </div>
+            <i class="fa-solid fa-chevron-left arrow-icon"></i>
         </a>
 
         <!-- 3. استعلام نسب الغياب -->
         <a href="/attendance" class="portal-btn">
-            <i class="fa-solid fa-chevron-left arrow-icon"></i>
             <div class="btn-content">
+                <div class="btn-icon icon-att"><i class="fa-solid fa-user-clock"></i></div>
                 <div class="btn-text">
                     <h3>استعلام نسب الغياب للمقررات</h3>
                     <p>متابعة ساعات ونسب الحرمان من أصل 20%</p>
                 </div>
-                <div class="btn-icon icon-att"><i class="fa-solid fa-user-clock"></i></div>
             </div>
+            <i class="fa-solid fa-chevron-left arrow-icon"></i>
         </a>
     </div>
 
-    <!-- التذييل الأوسط -->
     <div class="footer-box">
         <span class="footer-note-center">هذا النموذج خاص بمتدربي معهد الأفلاج</span>
     </div>
 
-    <!-- الحقوق منفصلة في الزاوية اليسرى السفلية بالحجم القديم -->
-    <div class="dev-credits">Powered by ENG.TURKI</div>
+    <div class="dev-credits">⚡ Powered by ENG.TURKI</div>
 </div>
 
 </body>
