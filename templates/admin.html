@@ -3,62 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة الإدارة - معهد الأفلاج</title>
+    <title>لوحة التحكم - معهد الأفلاج</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
-        body { background-color: #f0f4f8; color: #2d3748; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-        .card { background: #ffffff; border-radius: 20px; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.05); width: 100%; max-width: 500px; padding: 35px 30px; text-align: center; }
-        h2 { font-size: 20px; color: #0f2d59; margin-bottom: 20px; }
-        .upload-section { background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 15px; margin-bottom: 18px; text-align: right; }
-        .section-label { font-size: 13.5px; font-weight: bold; color: #0f2d59; margin-bottom: 8px; display: block; }
-        input[type="password"], input[type="file"] { width: 100%; padding: 10px; margin-bottom: 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13.5px; }
-        button { width: 100%; padding: 11px; background-color: #00877d; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        body { background-color: #f0f4f8; color: #2d3748; padding: 30px 15px; }
+        .wrapper { max-width: 750px; margin: 0 auto; }
+        .card { background: #ffffff; border-radius: 16px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05); padding: 25px; margin-bottom: 22px; text-align: right; }
+        h2 { font-size: 17px; color: #0f2d59; margin-bottom: 15px; border-bottom: 2px solid #edf2f7; padding-bottom: 8px; }
+        input[type="password"], input[type="file"], input[type="text"] { width: 100%; padding: 10px 12px; margin-bottom: 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13.5px; }
+        input:focus { border-color: #00877d; outline: none; }
+        button { padding: 10px 18px; background-color: #00877d; color: white; border: none; border-radius: 8px; font-size: 13.5px; font-weight: bold; cursor: pointer; }
         button:hover { background-color: #006e66; }
-        .msg { padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13.5px; }
+        .msg { padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 13.5px; text-align: center; }
         .msg-error { background: #fed7d7; color: #9b2c2c; }
         .msg-success { background: #c6f6d5; color: #22543d; }
-        .logout-link { display: inline-block; margin-top: 10px; font-size: 13px; color: #e53e3e; text-decoration: none; }
+        .logout-bar { text-align: left; margin-bottom: 12px; }
+        .logout-link { color: #e53e3e; font-size: 13px; text-decoration: none; font-weight: bold; }
+        
+        /* عناصر صفوف الخدمات */
+        .service-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+        .service-row input { margin-bottom: 0; }
+        .btn-del { background-color: #e53e3e; padding: 10px 14px; border-radius: 8px; }
+        .btn-del:hover { background-color: #c53030; }
+        .btn-add { background-color: #4a5568; margin-bottom: 15px; font-size: 12.5px; }
+        .btn-add:hover { background-color: #2d3748; }
+        .hint-text { font-size: 11.5px; color: #718096; margin-bottom: 12px; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>⚙️ لوحة إدارة الجداول والغياب</h2>
-
-    {% if msg %}
-        <div class="msg msg-{{ msg_type }}">{{ msg }}</div>
-    {% endif %}
-
+<div class="wrapper">
     {% if not logged_in %}
-        <form method="POST">
-            <input type="hidden" name="action" value="login">
-            <input type="password" name="password" placeholder="أدخل كلمة مرور المسؤول" required>
-            <button type="submit">دخول</button>
-        </form>
+        <div class="card" style="text-align: center; max-width: 400px; margin: 80px auto;">
+            <h2>تسجيل دخول المسؤول</h2>
+            {% if msg %}<div class="msg msg-{{ msg_type }}">{{ msg }}</div>{% endif %}
+            <form method="POST">
+                <input type="hidden" name="action" value="login">
+                <input type="password" name="password" placeholder="أدخل كلمة المرور" required>
+                <button type="submit" style="width: 100%;">دخول</button>
+            </form>
+        </div>
     {% else %}
-        <!-- رفع ملف الجداول -->
-        <div class="upload-section">
-            <span class="section-label">🗓️ تحديث جدول الشعب التدريبية (schedules.pdf):</span>
+        <div class="logout-bar">
+            <a href="/admin/logout" class="logout-link">تسجيل الخروج ⬅️</a>
+        </div>
+
+        {% if msg %}<div class="msg msg-{{ msg_type }}">{{ msg }}</div>{% endif %}
+
+        <!-- تحديث الجدول الدراسي -->
+        <div class="card">
+            <h2>🗓️ تحديث ملف الجداول (PDF)</h2>
             <form method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="upload_schedule">
-                <input type="file" name="schedule_file" accept=".pdf" required>
+                <input type="hidden" name="action" value="upload">
+                <input type="file" name="pdf_file" accept=".pdf" required>
                 <button type="submit">رفع وتحديث الجدول</button>
             </form>
         </div>
 
-        <!-- رفع ملف الغياب -->
-        <div class="upload-section">
-            <span class="section-label">📑 تحديث تقرير الغياب الأسبوعي (attendance.pdf):</span>
-            <form method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="upload_attendance">
-                <input type="file" name="attendance_file" accept=".pdf" required>
-                <button type="submit" style="background-color: #2b6cb0;">رفع وتحديث الغياب</button>
+        <!-- إدارة روابط خدمات المتدربين -->
+        <div class="card">
+            <h2>🔗 إدارة روابط "خدمات المتدربين"</h2>
+            <p class="hint-text">يمكنك تعديل أسماء الخدمات، روابطها التشعبية، ورمز الأيقونة من مكتبة Font Awesome (مثال: fa-link, fa-envelope, fa-key).</p>
+            
+            <form method="POST">
+                <input type="hidden" name="action" value="save_services">
+                <div id="services-container">
+                    {% for item in services %}
+                    <div class="service-row">
+                        <input type="text" name="title[]" value="{{ item.title }}" placeholder="اسم الخدمة" required style="flex: 2;">
+                        <input type="text" name="url[]" value="{{ item.url }}" placeholder="الرابط التشعبي" required style="flex: 3;">
+                        <input type="text" name="icon[]" value="{{ item.icon }}" placeholder="كود الأيقونة" style="flex: 1.5;">
+                        <button type="button" class="btn-del" onclick="this.parentElement.remove()">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <button type="button" class="btn-add" onclick="addServiceRow()">+ إضافة خدمة جديدة</button>
+                <br>
+                <button type="submit" style="background-color: #0f5451; width: 100%; padding: 12px;">💾 حفظ التعديلات للخدمات</button>
             </form>
         </div>
-
-        <a href="/admin/logout" class="logout-link">تسجيل الخروج</a>
     {% endif %}
 </div>
 
+<script>
+function addServiceRow() {
+    const container = document.getElementById('services-container');
+    const div = document.createElement('div');
+    div.className = 'service-row';
+    div.innerHTML = `
+        <input type="text" name="title[]" placeholder="اسم الخدمة" required style="flex: 2;">
+        <input type="text" name="url[]" placeholder="https://..." required style="flex: 3;">
+        <input type="text" name="icon[]" value="fa-link" placeholder="كود الأيقونة" style="flex: 1.5;">
+        <button type="button" class="btn-del" onclick="this.parentElement.remove()">✕</button>
+    `;
+    container.appendChild(div);
+}
+</script>
 </body>
 </html>
