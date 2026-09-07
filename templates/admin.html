@@ -62,30 +62,21 @@
             </form>
         </div>
 
-        <!-- رفع تقرير الغياب -->
-        <div class="card">
-            <h2>📑 تحديث تقرير الغياب للمقررات (attendance.pdf)</h2>
-            <form method="POST" action="/admin" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="upload_attendance">
-                <input type="file" name="pdf_file" accept=".pdf" required>
-                <button type="submit" style="background-color: #c53030;">رفع وتحديث الغياب</button>
-            </form>
-        </div>
-
         <!-- إدارة روابط خدمات المتدربين -->
         <div class="card">
             <h2>🔗 إدارة روابط "خدمات المتدربين"</h2>
-            <p class="hint-text">الأيقونات تدعم مكتبة Font Awesome (أمثلة: fa-id-card, fa-user-gear, fa-table-cells, fa-key, fa-envelope, fa-link).</p>
+            <p class="hint-text">قم بتعديل الأسماء والروابط والأيقونات (Font Awesome)، ثم اضغط على زر الحفظ أدناه لتثبيتها بشكل دائم.</p>
             
-            <form method="POST" action="/admin">
+            <form id="services-form" method="POST" action="/admin">
                 <input type="hidden" name="action" value="save_services">
+                <input type="hidden" name="services_payload" id="services_payload">
                 
                 <div id="services-container">
                     {% for item in services %}
                     <div class="service-row">
-                        <input type="text" name="title[]" value="{{ item.title }}" placeholder="اسم الخدمة" required style="flex: 2;">
-                        <input type="text" name="url[]" value="{{ item.url }}" placeholder="https://..." required style="flex: 3;">
-                        <input type="text" name="icon[]" value="{{ item.icon }}" placeholder="الأيقونة" style="flex: 1.5;">
+                        <input type="text" class="srv-title" value="{{ item.title }}" placeholder="اسم الخدمة" required style="flex: 2;">
+                        <input type="text" class="srv-url" value="{{ item.url }}" placeholder="https://..." required style="flex: 3;">
+                        <input type="text" class="srv-icon" value="{{ item.icon }}" placeholder="الأيقونة" style="flex: 1.5;">
                         <button type="button" class="btn-del" onclick="this.parentElement.remove()">✕</button>
                     </div>
                     {% endfor %}
@@ -93,7 +84,7 @@
 
                 <button type="button" class="btn-add" onclick="addServiceRow()">+ إضافة خدمة جديدة</button>
                 <br>
-                <button type="submit" style="background-color: #0f5451; width: 100%; padding: 12px;">💾 حفظ تعديلات الخدمات فوراً</button>
+                <button type="submit" style="background-color: #0f5451; width: 100%; padding: 12px;">💾 حفظ التعديلات وتثبيتها نهائياً</button>
             </form>
         </div>
     {% endif %}
@@ -105,13 +96,31 @@ function addServiceRow() {
     const div = document.createElement('div');
     div.className = 'service-row';
     div.innerHTML = `
-        <input type="text" name="title[]" placeholder="اسم الخدمة" required style="flex: 2;">
-        <input type="text" name="url[]" placeholder="https://..." required style="flex: 3;">
-        <input type="text" name="icon[]" value="fa-link" placeholder="الأيقونة" style="flex: 1.5;">
+        <input type="text" class="srv-title" placeholder="اسم الخدمة" required style="flex: 2;">
+        <input type="text" class="srv-url" placeholder="https://..." required style="flex: 3;">
+        <input type="text" class="srv-icon" value="fa-link" placeholder="الأيقونة" style="flex: 1.5;">
         <button type="button" class="btn-del" onclick="this.parentElement.remove()">✕</button>
     `;
     container.appendChild(div);
 }
+
+document.getElementById('services-form')?.addEventListener('submit', function(e) {
+    const rows = document.querySelectorAll('.service-row');
+    const payload = [];
+
+    rows.forEach(row => {
+        const title = row.querySelector('.srv-title').value.trim();
+        const url = row.querySelector('.srv-url').value.trim();
+        let icon = row.querySelector('.srv-icon').value.trim();
+        if (!icon) icon = 'fa-link';
+
+        if (title && url) {
+            payload.push({ title: title, url: url, icon: icon });
+        }
+    });
+
+    document.getElementById('services_payload').value = JSON.stringify(payload);
+});
 </script>
 </body>
 </html>
