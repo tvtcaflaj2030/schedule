@@ -1,7 +1,6 @@
 import io
 import re
 import os
-import json
 import fitz  # PyMuPDF
 from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for, session
 
@@ -12,43 +11,40 @@ ADMIN_PASSWORD = "turki2026"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEDULES_PDF = os.path.join(BASE_DIR, "schedules.pdf")
 ATTENDANCE_PDF = os.path.join(BASE_DIR, "attendance.pdf")
-SERVICES_FILE = os.path.join(BASE_DIR, "services_data.json")
 
-DEFAULT_SERVICES = [
-    {"title": "الخدمات الذاتية للمتدربين (رايات)", "url": "https://tvtc.gov.sa/ar/Departments/tvtcdepartments/Rayat/pages/E-Services.aspx": "fa-user-gear"},
-    {"title": "شرح اضافة الايبان", "url": "https://youtu.be/rTF7pRETF2A?si=4x6fBDz-oXKRSxKp"},
-    {"title": "عرض جدول المتدرب", "url": "/schedule", "icon": "fa-table-cells"},
-    {"title": "طلب شهادة تعريف", "url": "https://tvtc.gov.sa/ar/Training-Units/Boys-Colleges/AQTC/Documents/%D8%A3%D8%AF%D9%84%D8%A9%20%D8%AE%D8%A7%D8%B5%D8%A9%20%D9%84%D9%84%D9%85%D8%AA%D8%AF%D8%B1%D8%A8%D9%8A%D9%86/%D8%A3%D8%AF%D9%84%D8%A9%20%D8%A8%D9%88%D8%A7%D8%A8%D8%A9%20%D8%B1%D8%A7%D9%8A%D8%A7%D8%AA%20%D9%84%D9%84%D9%85%D8%AA%D8%AF%D8%B1%D8%A8/%D8%AF%D9%84%D9%8A%D9%84%20%D8%B7%D9%84%D8%A8%20%D8%B4%D9%87%D8%A7%D8%AF%D8%A9%20%D8%A7%D9%84%D8%AA%D8%B9%D8%B1%D9%8A%D9%81%20%D8%B9%D9%86%20%D8%B7%D8%B1%D9%8A%D9%82%20%D8%B1%D8%A7%D9%8A%D8%A7%D8%AA.pdf", "icon": "fa-key"},
-    {"title": "التدرب عن بعد (تقني)", "url": "https://tvtclms.edu.sa/?ref=saudiwins.com", "icon": "fa-vellum fa-solid fa-laptop"},
-    {"title": "البريد الإلكتروني", "url": "https://outlook.office.com", "icon": "fa-envelope"}
+# القائمة الثابتة بالخدمات الجديدة والمصححة تماماً
+SERVICES_LIST = [
+    {
+        "title": "الخدمات الذاتية للمتدربين (رايات)",
+        "url": "https://tvtc.gov.sa/ar/Departments/tvtcdepartments/Rayat/pages/E-Services.aspx",
+        "icon": "fa-user-gear"
+    },
+    {
+        "title": "شرح اضافة الايبان",
+        "url": "https://youtu.be/rTF7pRETF2A?si=4x6fBDz-oXKRSxKp",
+        "icon": "fa-money-bill-transfer"
+    },
+    {
+        "title": "عرض جدول المتدرب",
+        "url": "/schedule",
+        "icon": "fa-table-cells"
+    },
+    {
+        "title": "طلب شهادة تعريف",
+        "url": "https://tvtc.gov.sa/ar/Training-Units/Boys-Colleges/AQTC/Documents/%D8%A3%D8%AF%D9%84%D8%A9%20%D8%AE%D8%A7%D8%B5%D8%A9%20%D9%84%D9%84%D9%85%D8%AA%D8%AF%D8%B1%D8%A8%D9%8A%D9%86/%D8%A3%D8%AF%D9%84%D8%A9%20%D8%A8%D9%88%D8%A7%D8%A8%D8%A9%20%D8%B1%D8%A7%D9%8A%D8%A7%D8%AA%20%D9%84%D9%84%D9%85%D8%AA%D8%AF%D8%B1%D8%A8/%D8%AF%D9%84%D9%8A%D9%84%20%D8%B7%D9%84%D8%A8%20%D8%B4%D9%87%D8%A7%D8%AF%D8%A9%20%D8%A7%D9%84%D8%AA%D8%B9%D8%B1%D9%8A%D9%81%20%D8%B9%D9%86%20%D8%B7%D8%B1%D9%8A%D9%82%20%D8%B1%D8%A7%D9%8A%D8%A7%D8%AA.pdf",
+        "icon": "fa-file-lines"
+    },
+    {
+        "title": "التدرب عن بعد (تقني)",
+        "url": "https://tvtclms.edu.sa/?ref=saudiwins.com",
+        "icon": "fa-laptop-code"
+    },
+    {
+        "title": "البريد الإلكتروني",
+        "url": "https://outlook.office.com",
+        "icon": "fa-envelope"
+    }
 ]
-
-def load_services():
-    """قراءة الخدمات المحفوظة وضمان عدم فقدانها"""
-    if not os.path.exists(SERVICES_FILE):
-        save_services(DEFAULT_SERVICES)
-        return DEFAULT_SERVICES
-    try:
-        with open(SERVICES_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if isinstance(data, list) and len(data) > 0:
-                return data
-            return DEFAULT_SERVICES
-    except Exception as e:
-        print(f"Error loading services: {e}")
-        return DEFAULT_SERVICES
-
-def save_services(data):
-    """حفظ فوري ومباشر على القرص مع ضمان تفريغ الذاكرة المؤقتة"""
-    try:
-        with open(SERVICES_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
-            f.flush()
-            os.fsync(f.fileno())
-        return True
-    except Exception as e:
-        print(f"Error saving services: {e}")
-        return False
 
 def normalize_digits(text):
     arabic_digits = "٠١٢٣٤٥٦٧٨٩"
@@ -92,8 +88,7 @@ def attendance_page():
 
 @app.route("/services")
 def services():
-    current_services = load_services()
-    return render_template("services.html", services=current_services)
+    return render_template("services.html", services=SERVICES_LIST)
 
 @app.route("/search_schedule", methods=["POST"])
 def search_schedule():
@@ -178,29 +173,10 @@ def admin():
                 msg = "تم رفع وتحديث تقرير الغياب بنجاح!"
                 msg_type = "success"
 
-        elif action == "save_services":
-            if not session.get("logged_in"): return redirect(url_for("admin"))
-            
-            raw_payload = request.form.get("services_payload")
-            try:
-                parsed_data = json.loads(raw_payload)
-                if isinstance(parsed_data, list) and len(parsed_data) > 0:
-                    save_services(parsed_data)
-                    msg = "تم حفظ وتثبيت الخدمات بنجاح ولن تتغير بعد الآن!"
-                    msg_type = "success"
-                else:
-                    msg = "قائمة الخدمات فارغة، لم يتم الحفظ."
-                    msg_type = "error"
-            except Exception as err:
-                msg = f"خطأ أثناء معالجة البيانات: {err}"
-                msg_type = "error"
-
-    current_services = load_services() if session.get("logged_in") else []
     return render_template("admin.html", 
                            logged_in=session.get("logged_in", False), 
                            msg=msg, 
-                           msg_type=msg_type, 
-                           services=current_services)
+                           msg_type=msg_type)
 
 @app.route("/admin/logout")
 def admin_logout():
