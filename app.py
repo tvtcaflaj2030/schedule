@@ -15,11 +15,11 @@ ATTENDANCE_PDF = os.path.join(BASE_DIR, "attendance.pdf")
 SERVICES_FILE = os.path.join(BASE_DIR, "services_data.json")
 
 DEFAULT_SERVICES = [
-    {"title": "التسجيل الذاتي للمتدربين", "url": "https://ugate.tvtc.gov.sa/AFrontGate/", "icon": "fa-id-card"},
-    {"title": "الخدمات الذاتية للمتدربين", "url": "https://rayat.tvtc.gov.sa", "icon": "fa-user-gear"},
+    {"title": "الخدمات الذاتية للمتدربين (رايات)", "url": "https://tvtc.gov.sa/ar/Departments/tvtcdepartments/Rayat/pages/E-Services.aspx": "fa-user-gear"},
+    {"title": "شرح اضافة الايبان", "url": "https://youtu.be/rTF7pRETF2A?si=4x6fBDz-oXKRSxKp"},
     {"title": "عرض جدول المتدرب", "url": "/schedule", "icon": "fa-table-cells"},
-    {"title": "هل نسيت كلمة المرور ؟", "url": "https://iam.tvtc.gov.sa", "icon": "fa-key"},
-    {"title": "أمن حسابك", "url": "https://iam.tvtc.gov.sa", "icon": "fa-shield-halved"},
+    {"title": "طلب شهادة تعريف", "url": "https://tvtc.gov.sa/ar/Training-Units/Boys-Colleges/AQTC/Documents/%D8%A3%D8%AF%D9%84%D8%A9%20%D8%AE%D8%A7%D8%B5%D8%A9%20%D9%84%D9%84%D9%85%D8%AA%D8%AF%D8%B1%D8%A8%D9%8A%D9%86/%D8%A3%D8%AF%D9%84%D8%A9%20%D8%A8%D9%88%D8%A7%D8%A8%D8%A9%20%D8%B1%D8%A7%D9%8A%D8%A7%D8%AA%20%D9%84%D9%84%D9%85%D8%AA%D8%AF%D8%B1%D8%A8/%D8%AF%D9%84%D9%8A%D9%84%20%D8%B7%D9%84%D8%A8%20%D8%B4%D9%87%D8%A7%D8%AF%D8%A9%20%D8%A7%D9%84%D8%AA%D8%B9%D8%B1%D9%8A%D9%81%20%D8%B9%D9%86%20%D8%B7%D8%B1%D9%8A%D9%82%20%D8%B1%D8%A7%D9%8A%D8%A7%D8%AA.pdf", "icon": "fa-key"},
+    {"title": "التدرب عن بعد (تقني)", "url": "https://tvtclms.edu.sa/?ref=saudiwins.com", "icon": "fa-vellum fa-solid fa-laptop"},
     {"title": "البريد الإلكتروني", "url": "https://outlook.office.com", "icon": "fa-envelope"}
 ]
 
