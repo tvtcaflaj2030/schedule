@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متابعة سير العملية التدريبية</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js للرسوم البيانية والدونات -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse لقراءة ملفات CSV بسرعة فائقة داخل المتصفح -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Font Awesome للأيقونات -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+        body { font-family: 'Cairo', sans-serif; }
+        @media print {
+            .no-print { display: none !important; }
+            .print-full { width: 100% !important; box-shadow: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+    <!-- شريط الرأس والعودة -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="/admin" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </a>
+                <div>
+                    <h1 class="font-bold text-lg text-slate-800">متابعة سير العملية التدريبية</h1>
+                    <p class="text-xs text-slate-400">لوحة تحليل وتقارير رايات (SO09 & ST06)</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="window.print()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg flex items-center gap-2">
+                    <i class="fa-solid fa-print"></i> طباعة التقرير
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- منطقة رفع الملفات (SO09 و ST06) -->
+        <section class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm no-print">
+            <div class="mb-4">
+                <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up text-emerald-600"></i>
+                    رفع بيانات رايات المعتمدة
+                </h2>
+                <p class="text-xs text-slate-500 mt-1">تتم معالجة وقراءة الملفات محلياً داخل المتصفح دون رفعها لأي خادم لضمان خصوصية تامة.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- مربع رفع SO09 -->
+                <div id="drop-so09" class="relative border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50 hover:bg-emerald-50/40 rounded-xl p-6 text-center transition-all cursor-pointer">
+                    <input type="file" id="file-so09" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                    <div class="space-y-2">
+                        <div class="w-12 h-12 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-file-csv"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-700">تقرير SO09 (أساسي)</h3>
+                        <p class="text-xs text-slate-400">ملف إحصائية حضور الشعب الأسبوعي (CSV)</p>
+                        <span id="name-so09" class="inline-block text-xs font-semibold px-2 py-1 rounded bg-slate-200 text-slate-600">لم يتم اختيار ملف</span>
+                    </div>
+                </div>
+
+                <!-- مربع رفع ST06 -->
+                <div id="drop-st06" class="relative border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/40 rounded-xl p-6 text-center transition-all cursor-pointer">
+                    <input type="file" id="file-st06" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                    <div class="space-y-2">
+                        <div class="w-12 h-12 mx-auto rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-users-viewfinder"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-700">تقرير ST06 (إضافي)</h3>
+                        <p class="text-xs text-slate-400">بيانات المتدربين المستمرين والبرامج التدريبية</p>
+                        <span id="name-st06" class="inline-block text-xs font-semibold px-2 py-1 rounded bg-slate-200 text-slate-600">اختياري</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- لوحة المؤشرات والنتائج (تظهر بعد المعالجة) -->
+        <div id="results-area" class="space-y-8 hidden">
+            
+            <!-- بطاقات الـ KPI الرئيسية -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 font-bold">إجمالي الشُّعب</p>
+                        <h3 id="kpi-sections" class="text-2xl font-extrabold text-slate-800">0</h3>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 font-bold">إجمالي المتدربين</p>
+                        <h3 id="kpi-trainees" class="text-2xl font-extrabold text-slate-800">0</h3>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 font-bold">نسبة التحضير العامة</p>
+                        <h3 id="kpi-rate" class="text-2xl font-extrabold text-emerald-600">0%</h3>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-user-xmark"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 font-bold">مجموع الغياب المسجل</p>
+                        <h3 id="kpi-absence" class="text-2xl font-extrabold text-rose-600">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الرسوم البيانية الدائرية والدونات تفصيلية -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- دونات التحضير -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center">
+                    <h3 class="font-bold text-slate-700 text-sm mb-4">مؤشر رصد التحضير</h3>
+                    <div class="w-48 h-48 relative">
+                        <canvas id="chart-attendance"></canvas>
+                    </div>
+                    <p id="desc-attendance" class="text-xs text-slate-500 mt-4 text-center"></p>
+                </div>
+
+                <!-- دونات الحضور مقابل الغياب -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center">
+                    <h3 class="font-bold text-slate-700 text-sm mb-4">نسبة الحضور مقابل الغياب</h3>
+                    <div class="w-48 h-48 relative">
+                        <canvas id="chart-absence"></canvas>
+                    </div>
+                    <p id="desc-absence" class="text-xs text-slate-500 mt-4 text-center"></p>
+                </div>
+
+                <!-- دونات نوع الجدولة (عملي / نظري) -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center">
+                    <h3 class="font-bold text-slate-700 text-sm mb-4">توزيع الشُّعب (عملي / نظري)</h3>
+                    <div class="w-48 h-48 relative">
+                        <canvas id="chart-types"></canvas>
+                    </div>
+                    <p id="desc-types" class="text-xs text-slate-500 mt-4 text-center"></p>
+                </div>
+            </div>
+
+            <!-- جدول الشعب والمقررات التفاعلي -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-base">تفاصيل رصد الشُّعب التدريبية</h3>
+                        <p class="text-xs text-slate-400">رصد دقيق لكل شعبة ومدرب ونسب الغياب</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="search-table" placeholder="ابحث باسم المدرب أو المقرر..." class="px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead class="bg-slate-50 text-slate-500 text-xs font-bold border-b border-slate-200">
+                            <tr>
+                                <th class="p-4">اسم المدرب</th>
+                                <th class="p-4">المقرر التدريبي</th>
+                                <th class="p-4">النوع</th>
+                                <th class="p-4">المتدربين</th>
+                                <th class="p-4">إجمالي التحضير</th>
+                                <th class="p-4">حضور</th>
+                                <th class="p-4">غياب</th>
+                                <th class="p-4">نسبة التحضير</th>
+                                <th class="p-4">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="divide-y divide-slate-100 font-medium">
+                            <!-- تعبئة البيانات بالـ JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        let so09Data = [];
+        let st06Data = [];
+        let chartAttendanceInstance = null;
+        let chartAbsenceInstance = null;
+        let chartTypesInstance = null;
+
+        // التقاط ملف SO09
+        document.getElementById('file-so09').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('name-so09').textContent = file.name;
+            document.getElementById('name-so09').className = "inline-block text-xs font-bold px-2 py-1 rounded bg-emerald-100 text-emerald-700";
+            
+            parseCSV(file, (data) => {
+                so09Data = data;
+                processData();
+            });
+        });
+
+        // التقاط ملف ST06
+        document.getElementById('file-st06').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('name-st06').textContent = file.name;
+            document.getElementById('name-st06').className = "inline-block text-xs font-bold px-2 py-1 rounded bg-blue-100 text-blue-700";
+            
+            parseCSV(file, (data) => {
+                st06Data = data;
+                processData();
+            });
+        });
+
+        function parseCSV(file, callback) {
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    callback(results.data);
+                }
+            });
+        }
+
+        function processData() {
+            if (so09Data.length === 0) return;
+
+            document.getElementById('results-area').classList.remove('hidden');
+
+            // المتغيرات التحليلية
+            let totalSections = so09Data.length;
+            let totalTrainees = 0;
+            let totalPrep = 0;
+            let totalPresent = 0;
+            let totalAbsent = 0;
+            let practicalCount = 0;
+            let theoryCount = 0;
+            let incompletePrepCount = 0;
+
+            so09Data.forEach(row => {
+                const trainees = parseInt(row['إجمالي المتدربين'] || row['عدد المسجلين'] || 0);
+                const prep = parseInt(row['إجمالي التحضير'] || 0);
+                const present = parseInt(row['تحضير مسجل'] || 0);
+                const absent = parseInt(row['غياب مسجل'] || 0);
+                const rate = parseFloat(row['نسبة التحضير'] || 0);
+                const type = (row['نوع الجدولة'] || '').trim();
+
+                totalTrainees += isNaN(trainees) ? 0 : trainees;
+                totalPrep += isNaN(prep) ? 0 : prep;
+                totalPresent += isNaN(present) ? 0 : present;
+                totalAbsent += isNaN(absent) ? 0 : absent;
+
+                if (type.includes('عملي')) practicalCount++;
+                else theoryCount++;
+
+                if (rate < 100) incompletePrepCount++;
+            });
+
+            const overallRate = totalSections > 0 ? (((totalSections - incompletePrepCount) / totalSections) * 100).toFixed(1) : 0;
+
+            // تحديث بطاقات الـ KPI
+            document.getElementById('kpi-sections').textContent = totalSections;
+            document.getElementById('kpi-trainees').textContent = totalTrainees;
+            document.getElementById('kpi-rate').textContent = overallRate + '%';
+            document.getElementById('kpi-absence').textContent = totalAbsent;
+
+            // رسم الدونات التفاعلي
+            renderDonutCharts(totalSections, incompletePrepCount, totalPresent, totalAbsent, practicalCount, theoryCount);
+
+            // ملء الجدول
+            renderTable(so09Data);
+        }
+
+        function renderDonutCharts(totalSections, incomplete, present, absent, practical, theory) {
+            // 1. دونات التحضير
+            if (chartAttendanceInstance) chartAttendanceInstance.destroy();
+            const ctx1 = document.getElementById('chart-attendance').getContext('2d');
+            chartAttendanceInstance = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: ['شعب مرصودة 100%', 'شعب متأخرة أو ناقصة'],
+                    datasets: [{
+                        data: [totalSections - incomplete, incomplete],
+                        backgroundColor: ['#10b981', '#f43f5e'],
+                        cutout: '75%'
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+            document.getElementById('desc-attendance').textContent = `${totalSections - incomplete} شعبة مكتملة من أصل ${totalSections}`;
+
+            // 2. دونات الحضور والغياب
+            if (chartAbsenceInstance) chartAbsenceInstance.destroy();
+            const ctx2 = document.getElementById('chart-absence').getContext('2d');
+            chartAbsenceInstance = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['حضور', 'غياب'],
+                    datasets: [{
+                        data: [present, absent],
+                        backgroundColor: ['#3b82f6', '#f59e0b'],
+                        cutout: '75%'
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+            const absenceRate = (present + absent) > 0 ? ((absent / (present + absent)) * 100).toFixed(1) : 0;
+            document.getElementById('desc-absence').textContent = `نسبة الغياب العامة: ${absenceRate}%`;
+
+            // 3. دونات العملي والنظري
+            if (chartTypesInstance) chartTypesInstance.destroy();
+            const ctx3 = document.getElementById('chart-types').getContext('2d');
+            chartTypesInstance = new Chart(ctx3, {
+                type: 'doughnut',
+                data: {
+                    labels: ['عملي', 'نظري'],
+                    datasets: [{
+                        data: [practical, theory],
+                        backgroundColor: ['#8b5cf6', '#06b6d4'],
+                        cutout: '75%'
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+            document.getElementById('desc-types').textContent = `${practical} عملي | ${theory} نظري`;
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            data.forEach(row => {
+                const rate = parseFloat(row['نسبة التحضير'] || 0);
+                const isComplete = rate >= 100;
+                
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-4 font-semibold text-slate-800">${row['اسم المدرب'] || '-'}</td>
+                    <td class="p-4 text-slate-600">${row['اسم المقرر'] || '-'}</td>
+                    <td class="p-4"><span class="px-2 py-0.5 rounded text-xs ${row['نوع الجدولة'] && row['نوع الجدولة'].includes('عملي') ? 'bg-purple-100 text-purple-700' : 'bg-cyan-100 text-cyan-700'}">${row['نوع الجدولة'] || '-'}</span></td>
+                    <td class="p-4 text-slate-700 font-bold">${row['إجمالي المتدربين'] || 0}</td>
+                    <td class="p-4 text-slate-500">${row['إجمالي التحضير'] || 0}</td>
+                    <td class="p-4 text-emerald-600 font-semibold">${row['تحضير مسجل'] || 0}</td>
+                    <td class="p-4 text-rose-600 font-semibold">${row['غياب مسجل'] || 0}</td>
+                    <td class="p-4 font-bold ${isComplete ? 'text-emerald-600' : 'text-rose-600'}">${rate.toFixed(1)}%</td>
+                    <td class="p-4">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${isComplete ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}">
+                            ${isComplete ? '<i class="fa-solid fa-check"></i> مكتمل' : '<i class="fa-solid fa-triangle-exclamation"></i> غير مكتمل'}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // فلترة البحث الفوري
+        document.getElementById('search-table').addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#table-body tr');
+            rows.forEach(r => {
+                const text = r.innerText.toLowerCase();
+                r.style.display = text.includes(query) ? '' : 'none';
+            });
+        });
+    </script>
+</body>
+</html>
