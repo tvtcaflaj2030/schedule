@@ -183,5 +183,10 @@ def admin_logout():
     session.pop("logged_in", None)
     return redirect(url_for("admin"))
 
+@app.route('/admin/attendance')
+# ضع ديكوريتور الحماية الخاص بك هنا إن وجد (مثل @login_required)
+def attendance_tracker():
+    return render_template('attendance_tracker.html')
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
