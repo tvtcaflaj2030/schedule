@@ -18,7 +18,6 @@
         body { font-family: 'Cairo', sans-serif; }
         @media print {
             .no-print { display: none !important; }
-            .print-shadow-none { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
             body { background-color: #ffffff !important; }
         }
     </style>
@@ -54,7 +53,7 @@
                     <i class="fa-solid fa-cloud-arrow-up text-emerald-700"></i>
                     رفع تقارير رايات لبدء التحليل
                 </h2>
-                <p class="text-xs text-slate-500 mt-1">يتم احتساب إجمالي المتدربين من تقرير ST06، ومؤشرات الحضور والشعب من تقرير SO09 معالجةً محلية تامة.</p>
+                <p class="text-xs text-slate-500 mt-1">تتم معالجة الملفات محلياً داخل المتصفح بأعلى درجات الأمان والسرية دون إرسالها لأي خادم.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -111,7 +110,7 @@
             <span>لوحة المؤشرات الرئيسية</span>
         </div>
 
-        <!-- المؤشرات الثلاثة الدائرية الكبرى (مطابقة للصورة الأصلية) -->
+        <!-- المؤشرات الثلاثة الدائرية الكبرى -->
         <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             <!-- 1. مؤشر نسبة حضور المدربين -->
@@ -164,10 +163,9 @@
 
         </section>
 
-        <!-- بطاقات الإحصاءات المستطيلة (10 بطاقات مطابقة للصورة الأصلية تماماً) -->
+        <!-- بطاقات الإحصاءات المستطيلة (10 بطاقات مطابقة للصورة الأصلية) -->
         <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
-            <!-- سطر 1 -->
             <div class="bg-white p-4 rounded-2xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-[11px] text-slate-400 font-bold">إجمالي عدد المدربين <i class="fa-regular fa-circle-question"></i></p>
@@ -209,7 +207,6 @@
                 </div>
             </div>
 
-            <!-- سطر 2 -->
             <div class="bg-white p-4 rounded-2xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-[11px] text-slate-400 font-bold">إجمالي عدد المتدربين <i class="fa-regular fa-circle-question"></i></p>
@@ -250,7 +247,6 @@
                 </div>
             </div>
 
-            <!-- سطر 3 -->
             <div class="bg-white p-4 rounded-2xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between sm:col-span-2 lg:col-span-2">
                 <div>
                     <p class="text-[11px] text-slate-400 font-bold">عدد البرامج التدريبية <i class="fa-regular fa-circle-question"></i></p>
@@ -273,7 +269,7 @@
 
         </section>
 
-        <!-- نموذج تفاصيل التقييم (مطابق للصورة الأولى تماماً وجاهز للطباعة والتقرير) -->
+        <!-- نموذج تفاصيل التقييم (مطابق للصورة الأولى تماماً) -->
         <fieldset class="bg-white rounded-2xl p-6 border-2 border-slate-300 shadow-sm space-y-4">
             <legend class="text-sm font-bold text-slate-700 px-3 flex items-center gap-2">
                 <i class="fa-solid fa-file-signature text-emerald-700"></i> تفاصيل التقييم :
@@ -327,11 +323,9 @@
     </main>
 
     <script>
-        // المتغيرات المركزية
         let so09Data = [];
         let st06Data = [];
 
-        // متغيرات الرسوم البيانية
         let chartTrainers = null;
         let chartTrainees = null;
         let chartSections = null;
@@ -370,7 +364,7 @@
             });
         });
 
-        // مراقبة مدخلات المدربين لتحديث النسب فوراً
+        // تفاعلية مدخلات المدربين
         document.getElementById('input-trainers-count').addEventListener('input', recalculateDashboard);
         document.getElementById('input-trainers-absent-days').addEventListener('input', recalculateDashboard);
 
@@ -384,7 +378,6 @@
             let trainerAttendanceRate = totalOpportunities > 0 ? ((attendedOpportunities / totalOpportunities) * 100) : 100;
             let attendedTrainersPerWeek = (attendedOpportunities / 5).toFixed(2);
 
-            // تحديث نصوص المدربين
             document.getElementById('trainer-formula-calc').textContent = 
                 `${trainersCount} مدرباً × 5 أيام = ${totalOpportunities} فرصة - ${absentDays} غياب = ${attendedOpportunities} حضور - النسبة ${attendedOpportunities} ÷ ${totalOpportunities} × 100 = ${trainerAttendanceRate.toFixed(1)}%`;
             
@@ -399,7 +392,7 @@
             document.getElementById('eval-trainers-present').value = attendedTrainersPerWeek;
 
             // 2. حسابات المتدربين من ST06
-            let totalTraineesST06 = 59; // القيمة الافتراضية المطابقة
+            let totalTraineesST06 = 59;
             let totalPrograms = 2;
             let totalDepartments = 1;
 
@@ -449,7 +442,6 @@
             let presentTraineesCalculated = Math.round(totalTraineesST06 * (traineeAttRate / 100));
             let sectionExecRate = totalSections > 0 ? ((executedSections / totalSections) * 100) : 100.0;
 
-            // تحديث بطاقات المتدربين والشعب
             document.getElementById('txt-trainees-pct').textContent = traineeAttRate.toFixed(1) + '%';
             document.getElementById('txt-trainees-counts').textContent = `${regPrep} من ${totalPrep} تحضيراً`;
             document.getElementById('txt-records-count').textContent = `عدد السجلات المرتبطة: ${totalSections}`;
@@ -458,7 +450,6 @@
             document.getElementById('card-trainees-present').textContent = presentTraineesCalculated;
             document.getElementById('eval-trainees-present').value = presentTraineesCalculated;
 
-            // مؤشر حالة حضور المتدربين
             const badgeTrainees = document.getElementById('badge-trainees-status');
             if (traineeAttRate >= 80) {
                 badgeTrainees.textContent = 'ممتاز';
@@ -468,7 +459,6 @@
                 badgeTrainees.className = 'inline-block px-3 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800';
             }
 
-            // تحديث بطاقات تنفيذ الشعب
             document.getElementById('txt-sections-pct').textContent = sectionExecRate.toFixed(1) + '%';
             document.getElementById('txt-sections-summary').textContent = `${executedSections} من ${totalSections} شعبة`;
             document.getElementById('txt-sections-total').textContent = `عدد الشعب الإجمالية: ${totalSections}`;
@@ -477,12 +467,11 @@
             document.getElementById('eval-sections-executed').value = executedSections;
             document.getElementById('eval-sections-total').value = totalSections;
 
-            // تحديث الرسوم الدائرية
             drawAllCharts(trainerAttendanceRate, traineeAttRate, sectionExecRate);
         }
 
         function drawAllCharts(trainerRate, traineeRate, sectionRate) {
-            // 1. نصف دونات المدربين (أخضر داكن)
+            // نصف دونات المدربين (أخضر)
             if (chartTrainers) chartTrainers.destroy();
             const ctxTrainers = document.getElementById('gauge-trainers').getContext('2d');
             chartTrainers = new Chart(ctxTrainers, {
@@ -500,7 +489,7 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
             });
 
-            // 2. دونات المتدربين الكاملة (برتقالي ذهبي)
+            // دونات المتدربين الكاملة (برتقالي ذهبي)
             if (chartTrainees) chartTrainees.destroy();
             const ctxTrainees = document.getElementById('donut-trainees').getContext('2d');
             chartTrainees = new Chart(ctxTrainees, {
@@ -516,7 +505,7 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
             });
 
-            // 3. نصف دونات الشعب (أخضر داكن)
+            // نصف دونات الشعب (أخضر)
             if (chartSections) chartSections.destroy();
             const ctxSections = document.getElementById('gauge-sections').getContext('2d');
             chartSections = new Chart(ctxSections, {
@@ -535,7 +524,6 @@
             });
         }
 
-        // تشغيل أولي لعرض المؤشرات بالأرقام الحقيقية مباشرة
         window.addEventListener('DOMContentLoaded', () => {
             recalculateDashboard();
         });
