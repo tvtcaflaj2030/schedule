@@ -1,6 +1,9 @@
 import io
 import re
 import os
+import json
+import sqlite3
+from datetime import datetime
 import fitz  # PyMuPDF
 from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for, session
 
@@ -11,6 +14,34 @@ ADMIN_PASSWORD = "turki2026"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEDULES_PDF = os.path.join(BASE_DIR, "schedules.pdf")
 ATTENDANCE_PDF = os.path.join(BASE_DIR, "attendance.pdf")
+DB_PATH = os.path.join(BASE_DIR, "attendance_archive.db")
+
+# --- تهيئة قاعدة بيانات الأرشيف والتقارير المعتمدة ---
+def init_attendance_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS approved_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            approval_date TEXT NOT NULL,
+            training_week TEXT NOT NULL,
+            training_term TEXT NOT NULL,
+            department TEXT NOT NULL,
+            trainers_count INTEGER DEFAULT 0,
+            trainers_attendance_rate REAL DEFAULT 0,
+            trainees_count INTEGER DEFAULT 0,
+            trainees_present_count INTEGER DEFAULT 0,
+            trainees_attendance_rate REAL DEFAULT 0,
+            sections_total INTEGER DEFAULT 0,
+            sections_executed INTEGER DEFAULT 0,
+            notes TEXT,
+            full_data_json TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_attendance_db()
 
 # القائمة الثابتة بالخدمات الجديدة والمصححة تماماً
 SERVICES_LIST = [
@@ -72,7 +103,7 @@ def find_student_pages(pdf_path, trainee_id):
     except Exception:
         return []
 
-# --- مسارات الواجهة ---
+# --- مسارات الواجهة العامة ---
 
 @app.route("/")
 def home():
@@ -140,7 +171,7 @@ def get_schedule_image():
     except Exception as e:
         return str(e), 500
 
-# --- لوحة التحكم ---
+# --- لوحة التحكم وإدارة الجداول والتحضير ---
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -183,10 +214,109 @@ def admin_logout():
     session.pop("logged_in", None)
     return redirect(url_for("admin"))
 
+# 1. شاشة متابعة سير العملية التدريبية
 @app.route('/admin/attendance')
-# ضع ديكوريتور الحماية الخاص بك هنا إن وجد (مثل @login_required)
 def attendance_tracker():
-    return render_template('attendance_tracker.html')
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
+    return render_template('attendance_tracker.html', is_archived_view=False)
+
+# 2. مسار حفظ واعتماد التقرير
+@app.route('/admin/attendance/approve', methods=['POST'])
+def approve_report():
+    if not session.get("logged_in"):
+        return jsonify({'success': False, 'message': 'غير مصرح بالدخول'}), 403
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'لا توجد بيانات صالحة'}), 400
+
+        approval_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+        training_week = data.get('training_week', 'غير محدد')
+        training_term = data.get('training_term', 'الفصل التدريبي الأول 1448')
+        department = data.get('department', 'القسم التدريبي')
+        notes = data.get('notes', '')
+
+        kpis = data.get('kpis', {})
+        trainers_count = int(kpis.get('trainers_count', 0))
+        trainers_attendance_rate = float(kpis.get('trainers_attendance_rate', 0.0))
+        trainees_count = int(kpis.get('trainees_count', 0))
+        trainees_present_count = int(kpis.get('trainees_present_count', 0))
+        trainees_attendance_rate = float(kpis.get('trainees_attendance_rate', 0.0))
+        sections_total = int(kpis.get('sections_total', 0))
+        sections_executed = int(kpis.get('sections_executed', 0))
+
+        data['approval_date'] = approval_date
+        full_json = json.dumps(data, ensure_ascii=False)
+
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO approved_reports (
+                approval_date, training_week, training_term, department,
+                trainers_count, trainers_attendance_rate,
+                trainees_count, trainees_present_count, trainees_attendance_rate,
+                sections_total, sections_executed, notes, full_data_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            approval_date, training_week, training_term, department,
+            trainers_count, trainers_attendance_rate,
+            trainees_count, trainees_present_count, trainees_attendance_rate,
+            sections_total, sections_executed, notes, full_json
+        ))
+        report_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'report_id': report_id, 'message': 'تم اعتماد التقرير وأرشفته بنجاح'}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# 3. شاشة سجل الأرشيف للتقارير المعتمدة
+@app.route('/admin/attendance/archive')
+def attendance_archive():
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, approval_date, training_week, training_term, department,
+               trainees_count, trainees_attendance_rate,
+               trainers_attendance_rate, sections_total, sections_executed, notes
+        FROM approved_reports
+        ORDER BY id DESC
+    ''')
+    reports = cursor.fetchall()
+    conn.close()
+    return render_template('attendance_archive.html', reports=reports)
+
+# 4. فتح تقرير مؤرشف ببياناته ورسوماته السابقة للطباعة أو الاستعراض
+@app.route('/admin/attendance/archive/<int:report_id>')
+def get_archived_report(report_id):
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT full_data_json FROM approved_reports WHERE id = ?', (report_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return "التقرير غير موجود", 404
+    return render_template('attendance_tracker.html', archived_json=row['full_data_json'], is_archived_view=True)
+
+# 5. حذف تقرير معتمد من الأرشيف
+@app.route('/admin/attendance/archive/<int:report_id>/delete', methods=['POST'])
+def delete_archived_report(report_id):
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM approved_reports WHERE id = ?', (report_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('attendance_archive'))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
