@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>أرشيف التقارير المعتمدة</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -41,7 +40,7 @@
                 <i class="fa-solid fa-folder-open"></i>
             </div>
             <h3 class="text-base font-bold text-slate-700">لا توجد تقارير معتمدة حتى الآن</h3>
-            <p class="text-xs text-slate-400 max-w-sm mx-auto">عند قيامك برفع ملفات رايات والضغط على زر "اعتماد التقرير"، ستظهر جميع التقارير مؤرشفة هنا ومقسمة بالأسابيع.</p>
+            <p class="text-xs text-slate-400 max-w-sm mx-auto">عند قيامك باعتماد التقارير ستظهر هنا مقسمة حسب التواريخ والأقسام.</p>
             <a href="/admin/attendance" class="inline-block px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow">بدء الاعتماد الأول</a>
         </div>
         {% else %}
@@ -50,30 +49,40 @@
             {% for rep in reports %}
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all p-5 space-y-4 flex flex-col justify-between">
                 
-                <div class="space-y-2">
+                <div class="space-y-3">
                     <div class="flex items-center justify-between">
                         <span class="px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold bg-emerald-100 text-emerald-800">{{ rep.training_week }}</span>
                         <span class="text-[11px] text-slate-400 font-bold"><i class="fa-regular fa-clock ml-1"></i>{{ rep.approval_date }}</span>
                     </div>
-                    <h3 class="font-extrabold text-base text-slate-800">{{ rep.department }}</h3>
-                    <p class="text-xs text-slate-400">{{ rep.training_term }}</p>
+
+                    <!-- اسم القسم وبجانبه نسبة الحضور مباشرة -->
+                    <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                        <div>
+                            <h3 class="font-extrabold text-base text-slate-800">{{ rep.department }}</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">{{ rep.training_term }}</p>
+                        </div>
+                        <div class="text-left">
+                            <span class="inline-block px-3 py-1 rounded-xl text-sm font-black {% if rep.trainees_attendance_rate >= 80 %}bg-emerald-100 text-emerald-800 border border-emerald-200{% else %}bg-amber-100 text-amber-800 border border-amber-200{% endif %}">
+                                {{ "%.1f"|format(rep.trainees_attendance_rate) }}%
+                            </span>
+                            <span class="block text-[9.5px] font-bold text-slate-400 text-center mt-0.5">نسبة الحضور</span>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- شبكة المؤشرات المصغرة -->
+                <!-- البيانات الثلاث: إجمالي المتدربين | المتدربين الحاضرين | الشعب المنفذة -->
                 <div class="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-xl text-center border border-slate-100">
                     <div>
-                        <p class="text-[10px] text-slate-400 font-bold">حضور المتدربين</p>
-                        <p class="text-sm font-black {% if rep.trainees_attendance_rate >= 80 %}text-emerald-700{% else %}text-amber-600{% endif %}">
-                            {{ "%.1f"|format(rep.trainees_attendance_rate) }}%
-                        </p>
+                        <p class="text-[10px] text-slate-400 font-bold">إجمالي المتدربين</p>
+                        <p class="text-sm font-black text-slate-800 mt-0.5">{{ rep.trainees_count }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] text-slate-400 font-bold">المتدربين</p>
-                        <p class="text-sm font-black text-slate-800">{{ rep.trainees_count }}</p>
+                        <p class="text-[10px] text-slate-400 font-bold">المتدربين الحاضرين</p>
+                        <p class="text-sm font-black text-emerald-700 mt-0.5">{{ rep.trainees_present_count }}</p>
                     </div>
                     <div>
                         <p class="text-[10px] text-slate-400 font-bold">الشعب المنفذة</p>
-                        <p class="text-sm font-black text-slate-800">{{ rep.sections_executed }} / {{ rep.sections_total }}</p>
+                        <p class="text-sm font-black text-slate-800 mt-0.5">{{ rep.sections_executed }} / {{ rep.sections_total }}</p>
                     </div>
                 </div>
 
@@ -84,7 +93,7 @@
                 {% endif %}
 
                 <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-                    <form action="/admin/attendance/archive/{{ rep.id }}/delete" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف هذا التقرير من الأرشيف نهائياً؟');">
+                    <form action="/admin/attendance/archive/{{ rep.id }}/delete" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف هذا التقرير نهائياً؟');">
                         <button type="submit" class="text-xs text-rose-500 hover:text-rose-700 font-bold p-1">
                             <i class="fa-solid fa-trash-can"></i> حذف
                         </button>
