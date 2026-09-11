@@ -37,6 +37,9 @@
                 </div>
             </div>
             <div class="flex items-center gap-3">
+                <button onclick="clearAllData()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all" title="مسح البيانات الحالية">
+                    <i class="fa-solid fa-trash-can"></i> مسح البيانات
+                </button>
                 <button onclick="window.print()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all">
                     <i class="fa-solid fa-print"></i> طباعة التقرير التنفيذي
                 </button>
@@ -48,12 +51,17 @@
 
         <!-- منطقة رفع الملفات SO09 و ST06 -->
         <section class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm no-print space-y-4">
-            <div>
-                <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-cloud-arrow-up text-emerald-700"></i>
-                    رفع تقارير رايات لبدء التحليل
-                </h2>
-                <p class="text-xs text-slate-500 mt-1">يرجى رفع ملف الحضور SO09 وملف المتدربين المستمرين ST06 لبدء استخراج المؤشرات تلقائياً وبأمان محلي 100%.</p>
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up text-emerald-700"></i>
+                        رفع تقارير رايات لبدء التحليل
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">تتم المعالجة محلياً 100% داخل المتصفح. يمكنك رفع بيانات كل قسم على حدة ومسحها متى شئت.</p>
+                </div>
+                <button onclick="clearAllData()" class="text-xs font-bold text-slate-400 hover:text-rose-600 flex items-center gap-1">
+                    <i class="fa-solid fa-rotate-right"></i> إعادة تعيين
+                </button>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -91,10 +99,10 @@
                 <i class="fa-solid fa-chart-pie"></i>
             </div>
             <h3 class="text-base font-bold text-slate-700">بانتظار رفع ملفات رايات</h3>
-            <p class="text-xs text-slate-400 max-w-md mx-auto">الرجاء رفع ملف SO09 (بيانات الحضور) وملف ST06 (المتدربين المستمرين) أعلاه لتوليد لوحة المؤشرات والرسوم البيانية التفاعلية فوراً.</p>
+            <p class="text-xs text-slate-400 max-w-md mx-auto">الرجاء اختيار ملفي SO09 و ST06 في الصناديق أعلاه لعرض لوحة المؤشرات، الرسوم البيانية، وقوائم المتدربين والمدربين فوراً.</p>
         </div>
 
-        <!-- منطقة التحليل والنتائج الكاملة (مخفية افتراضياً) -->
+        <!-- منطقة النتائج والتحليل الكاملة -->
         <div id="analytics-section" class="space-y-6 hidden">
 
             <!-- عنوان لوحة المؤشرات الرئيسية -->
@@ -106,7 +114,7 @@
                 </div>
             </div>
 
-            <!-- شريط تحديد نطاق التحديد والعرض (تم نقله هنا: أسفل العنوان وقبل البطاقات) -->
+            <!-- شريط تحديد نطاق التحليل والعرض -->
             <section class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
                 <div class="flex items-center gap-3 w-full md:w-auto">
                     <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-lg shrink-0">
@@ -125,24 +133,34 @@
                 </div>
             </section>
 
-            <!-- مدخلات حساب حضور المدربين التفاعلية -->
-            <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
-                    <label class="text-xs font-bold text-slate-600 block">إجمالي عدد المدربين (للنطاق المحدد)</label>
-                    <input type="number" id="input-trainers-count" value="0" min="1" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 font-bold text-sm focus:outline-none focus:border-emerald-600">
+            <!-- مدخلات حساب حضور المدربين + زر مسح البيانات في نفس المنطقة -->
+            <section class="space-y-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
+                        <label class="text-xs font-bold text-slate-600 block">إجمالي عدد المدربين (للنطاق المحدد)</label>
+                        <input type="number" id="input-trainers-count" value="0" min="1" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 font-bold text-sm focus:outline-none focus:border-emerald-600">
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
+                        <label class="text-xs font-bold text-slate-600 block">عدد أيام غياب المدربين (خلال الأسبوع)</label>
+                        <input type="number" id="input-trainers-absent-days" value="0" min="0" placeholder="أدخل العدد" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-800 font-bold text-sm focus:outline-none focus:border-emerald-600">
+                        <div class="bg-slate-100 rounded-xl p-2 text-[11px] text-slate-500 font-medium space-y-0.5">
+                            <p>فرص الحضور = عدد المدربين × 5 أيام — الحضور = الفرص - أيام الغياب</p>
+                            <p id="trainer-formula-calc" class="font-bold text-slate-700">-</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
-                    <label class="text-xs font-bold text-slate-600 block">عدد أيام غياب المدربين (خلال الأسبوع)</label>
-                    <input type="number" id="input-trainers-absent-days" value="0" min="0" placeholder="أدخل العدد" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-800 font-bold text-sm focus:outline-none focus:border-emerald-600">
-                    <div class="bg-slate-100 rounded-xl p-2 text-[11px] text-slate-500 font-medium space-y-0.5">
-                        <p>فرص الحضور = عدد المدربين × 5 أيام — الحضور = الفرص - أيام الغياب</p>
-                        <p id="trainer-formula-calc" class="font-bold text-slate-700">-</p>
-                    </div>
+                <!-- زر مسح البيانات وتفريغ الصفحة في هذه المنطقة -->
+                <div class="flex justify-end no-print">
+                    <button onclick="clearAllData()" class="px-4 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <span>مسح البيانات كاملة وإعادة رفع ملفات جديدة</span>
+                    </button>
                 </div>
             </section>
 
-            <!-- المؤشرات الثلاثة الدائرية الكبرى -->
+            <!-- المؤشرات الثلاثة الدائرية الكبرى (مع تصحيح الألوان للأخضر عند 100%) -->
             <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- 1. مؤشر نسبة حضور المدربين -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col items-center justify-between text-center min-h-[290px]">
@@ -160,23 +178,23 @@
                     </div>
                 </div>
 
-                <!-- 2. مؤشر نسبة حضور المتدربين (دونات) -->
+                <!-- 2. مؤشر نسبة حضور المتدربين (يتحول للأخضر عند >= 80% أو 100%) -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col items-center justify-between text-center min-h-[290px]">
                     <span class="text-xs font-bold text-slate-500">نسبة حضور المتدربين <i class="fa-regular fa-circle-question text-[11px] text-slate-400"></i></span>
                     <div class="w-36 h-36 relative flex items-center justify-center my-2">
                         <canvas id="donut-trainees"></canvas>
                         <div class="absolute inset-0 flex items-center justify-center">
-                            <span id="txt-trainees-pct" class="text-2xl font-black text-amber-600 tracking-tight">0%</span>
+                            <span id="txt-trainees-pct" class="text-2xl font-black text-emerald-700 tracking-tight">0%</span>
                         </div>
                     </div>
                     <div class="w-full space-y-1">
-                        <span id="badge-trainees-status" class="inline-block px-3 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">يحتاج متابعة</span>
+                        <span id="badge-trainees-status" class="inline-block px-3 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">ممتاز</span>
                         <p id="txt-trainees-counts" class="text-xs font-bold text-slate-700">0 من 0 تحضيراً</p>
                         <p id="txt-records-count" class="text-[11px] text-slate-400">عدد السجلات المرتبطة: 0</p>
                     </div>
                 </div>
 
-                <!-- 3. مؤشر نسبة تنفيذ الشعب (قوس) -->
+                <!-- 3. مؤشر نسبة تنفيذ الشعب -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col items-center justify-between text-center min-h-[290px]">
                     <span class="text-xs font-bold text-slate-500">نسبة تنفيذ الشعب <i class="fa-regular fa-circle-question text-[11px] text-slate-400"></i></span>
                     <div class="w-48 h-28 relative flex items-end justify-center mt-2">
@@ -326,6 +344,104 @@
                 </div>
             </fieldset>
 
+            <!-- الجداول التفصيلية في الأسفل (مطابقة للمنصة الأخرى) -->
+            <div class="space-y-6 pt-4">
+
+                <!-- 1. جدول بيانات المدربين (مطابق للصورة) -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex items-center justify-between gap-4 bg-slate-50/50">
+                        <h3 class="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-chalkboard-user text-emerald-700"></i>
+                            بيانات المدربين
+                        </h3>
+                        <div class="w-64">
+                            <input type="text" id="search-trainers" placeholder="بحث..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-1 text-xs focus:outline-none focus:border-emerald-600">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-emerald-50/60 text-emerald-950 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3 cursor-pointer">المدرب <i class="fa-solid fa-arrows-up-down text-[10px] text-slate-400"></i></th>
+                                    <th class="p-3 text-center cursor-pointer w-36">عدد السجلات <i class="fa-solid fa-arrows-up-down text-[10px] text-slate-400"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-trainers-body" class="divide-y divide-slate-100 font-medium">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 2. جدول التحليل الذكي للشعب (كشف المتسبب في رفع أو نقص نسبة التدريب) -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
+                        <div>
+                            <h3 class="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-chart-line text-emerald-700"></i>
+                                تحليل أداء الشُّعب ومؤشرات التأثير (المتسبب في النقص أو الرفع)
+                            </h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5">تحديد الشعب ذات الحضور العالي أو الغياب الحرج والمؤثرة في نسبة القسم العامة</p>
+                        </div>
+                        <div class="w-64">
+                            <input type="text" id="search-sections" placeholder="بحث باسم المدرب أو المقرر..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-1 text-xs focus:outline-none focus:border-emerald-600">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-xs">
+                            <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3">اسم المدرب</th>
+                                    <th class="p-3">اسم المقرر</th>
+                                    <th class="p-3 text-center">المتدربين</th>
+                                    <th class="p-3 text-center">إجمالي التحضير</th>
+                                    <th class="p-3 text-center">حضور</th>
+                                    <th class="p-3 text-center">غياب</th>
+                                    <th class="p-3 text-center">نسبة حضور الشعبة</th>
+                                    <th class="p-3 text-center">رصد المدرب (رايات)</th>
+                                    <th class="p-3 text-center">الأثر على نسبة القسم</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-sections-body" class="divide-y divide-slate-100 font-medium">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 3. جدول بيانات المتدربين (ST06) (مطابق للصورة) -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex items-center justify-between gap-4 bg-slate-50/50">
+                        <h3 class="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-users-viewfinder text-emerald-700"></i>
+                            بيانات المتدربين (ST06)
+                        </h3>
+                        <div class="w-64">
+                            <input type="text" id="search-st06" placeholder="بحث..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-1 text-xs focus:outline-none focus:border-emerald-600">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-xs whitespace-nowrap">
+                            <thead class="bg-emerald-50/60 text-emerald-950 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3">الفصل التدريبي</th>
+                                    <th class="p-3">رمز المنطقة</th>
+                                    <th class="p-3">المنطقة</th>
+                                    <th class="p-3">رمز الوحدة</th>
+                                    <th class="p-3">الوحدة بالمختصر</th>
+                                    <th class="p-3">الوحدة التدريبية</th>
+                                    <th class="p-3">المرحلة</th>
+                                    <th class="p-3">القسم</th>
+                                    <th class="p-3">البرنامج</th>
+                                    <th class="p-3 text-center">عدد المتدربين</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-st06-body" class="divide-y divide-slate-100 font-medium">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
         </div>
 
     </main>
@@ -338,7 +454,31 @@
         let chartTrainees = null;
         let chartSections = null;
 
-        // دالة تصنيف الشعب للأقسام
+        // دالة مسح وتفريغ كافة البيانات وإعادة الضبط
+        function clearAllData() {
+            so09Data = [];
+            st06Data = [];
+
+            document.getElementById('file-so09').value = '';
+            document.getElementById('file-st06').value = '';
+            document.getElementById('name-so09').textContent = 'لم يتم الاختيار';
+            document.getElementById('name-so09').className = 'inline-block text-xs font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-600';
+            document.getElementById('name-st06').textContent = 'لم يتم الاختيار';
+            document.getElementById('name-st06').className = 'inline-block text-xs font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-600';
+
+            document.getElementById('input-trainers-count').value = '0';
+            document.getElementById('input-trainers-absent-days').value = '0';
+            document.getElementById('trainer-formula-calc').textContent = '-';
+
+            document.getElementById('analytics-section').classList.add('hidden');
+            document.getElementById('empty-state').classList.remove('hidden');
+
+            // تدمير الرسوم البيانية القديمة
+            if (chartTrainers) { chartTrainers.destroy(); chartTrainers = null; }
+            if (chartTrainees) { chartTrainees.destroy(); chartTrainees = null; }
+            if (chartSections) { chartSections.destroy(); chartSections = null; }
+        }
+
         function detectDepartment(courseName) {
             courseName = courseName || '';
             if (/حاسب|شبكات|كيابل|لينكس|برمجة|بيانات|انترنت|صيانة|نصوص/.test(courseName)) {
@@ -356,7 +496,6 @@
             return 'أقسام أخرى';
         }
 
-        // تحديث القائمة المنسدلة بناءً على الأقسام المكتشفة في الملفات المرفوعة
         function updateDepartmentsDropdown() {
             const select = document.getElementById('select-department');
             const currentSelected = select.value;
@@ -389,7 +528,7 @@
             }
         }
 
-        // قراءة SO09
+        // التقاط ملف SO09
         document.getElementById('file-so09').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -406,7 +545,7 @@
             });
         });
 
-        // قراءة ST06
+        // التقاط ملف ST06
         document.getElementById('file-st06').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -424,7 +563,6 @@
         });
 
         function checkAndRender() {
-            // إظهار لوحة المؤشرات بمجرد رفع أحد الملفين
             if (so09Data.length > 0 || st06Data.length > 0) {
                 document.getElementById('empty-state').classList.add('hidden');
                 document.getElementById('analytics-section').classList.remove('hidden');
@@ -446,7 +584,7 @@
             document.getElementById('badge-active-scope').textContent = isAll ? 'كافة الأقسام (المنشأة كاملة)' : selectedDept;
             document.getElementById('eval-dept').value = isAll ? 'كافة الأقسام التدريبية' : selectedDept;
 
-            // 1. حسابات المتدربين من ST06
+            // 1. فلترة بيانات ST06
             let filteredST06 = st06Data;
             if (!isAll && st06Data.length > 0) {
                 filteredST06 = st06Data.filter(r => (r['القسم'] || '').trim() === selectedDept);
@@ -470,7 +608,7 @@
                 totalDepartments = isAll ? (depts.size || 1) : 1;
             }
 
-            // 2. حسابات الشعب والتحضير من SO09
+            // 2. فلترة شُعب SO09
             let filteredSO09 = so09Data;
             if (!isAll && so09Data.length > 0) {
                 filteredSO09 = so09Data.filter(r => detectDepartment(r['اسم المقرر']) === selectedDept);
@@ -480,14 +618,16 @@
             let totalPrep = 0;
             let regPrep = 0;
             let executedSections = 0;
-            let distinctTrainers = new Set();
+            let trainerRecordsMap = {};
 
             if (filteredSO09.length > 0) {
                 filteredSO09.forEach(row => {
                     let p = parseInt(row['إجمالي التحضير'] || 0) || 0;
                     let r = parseInt(row['تحضير مسجل'] || 0) || 0;
                     let rate = parseFloat(row['نسبة التحضير'] || 0) || 0;
-                    if (row['اسم المدرب']) distinctTrainers.add(row['اسم المدرب'].trim());
+                    let trainer = (row['اسم المدرب'] || 'غير محدد').trim();
+
+                    trainerRecordsMap[trainer] = (trainerRecordsMap[trainer] || 0) + 1;
 
                     totalPrep += p;
                     regPrep += r;
@@ -495,13 +635,15 @@
                 });
             }
 
-            // اقتراح وتحديث عدد المدربين بناءً على المدربين المكتشفين في الشعب
+            let distinctTrainersCount = Object.keys(trainerRecordsMap).length;
+
+            // تحديث حقل عدد المدربين المقترح
             let inputTrainersField = document.getElementById('input-trainers-count');
-            if (distinctTrainers.size > 0 && (document.activeElement !== inputTrainersField || inputTrainersField.value == '0')) {
-                inputTrainersField.value = distinctTrainers.size;
+            if (distinctTrainersCount > 0 && (document.activeElement !== inputTrainersField || inputTrainersField.value === '0')) {
+                inputTrainersField.value = distinctTrainersCount;
             }
 
-            let trainersCount = parseInt(inputTrainersField.value) || distinctTrainers.size || 0;
+            let trainersCount = parseInt(inputTrainersField.value) || distinctTrainersCount || 0;
             let absentDays = parseInt(document.getElementById('input-trainers-absent-days').value) || 0;
             
             let totalOpportunities = trainersCount * 5;
@@ -526,12 +668,12 @@
             document.getElementById('eval-trainers-total').value = trainersCount;
             document.getElementById('eval-trainers-present').value = attendedTrainersPerWeek;
 
-            // حسابات نسب المتدربين والشعب
+            // حسابات المتدربين والشعب
             let traineeAttRate = totalPrep > 0 ? ((regPrep / totalPrep) * 100) : 0;
             let presentTraineesCalculated = Math.round(totalTraineesST06 * (traineeAttRate / 100));
             let sectionExecRate = totalSections > 0 ? ((executedSections / totalSections) * 100) : 0;
 
-            // تحديث بطاقات المتدربين
+            // بطاقات المتدربين
             document.getElementById('card-trainees-total').textContent = totalTraineesST06;
             document.getElementById('card-programs-count').textContent = totalPrograms;
             document.getElementById('card-departments-count').textContent = totalDepartments;
@@ -545,16 +687,25 @@
             document.getElementById('card-trainees-present').textContent = presentTraineesCalculated;
             document.getElementById('eval-trainees-present').value = presentTraineesCalculated;
 
+            // ضبط ألوان وحالة مؤشر المتدربين ديناميكياً
+            const txtTraineesPct = document.getElementById('txt-trainees-pct');
             const badgeTrainees = document.getElementById('badge-trainees-status');
+
             if (traineeAttRate >= 80) {
+                txtTraineesPct.className = 'text-2xl font-black text-emerald-700 tracking-tight';
                 badgeTrainees.textContent = 'ممتاز';
                 badgeTrainees.className = 'inline-block px-3 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800';
-            } else {
+            } else if (traineeAttRate >= 60) {
+                txtTraineesPct.className = 'text-2xl font-black text-amber-600 tracking-tight';
                 badgeTrainees.textContent = 'يحتاج متابعة';
                 badgeTrainees.className = 'inline-block px-3 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800';
+            } else {
+                txtTraineesPct.className = 'text-2xl font-black text-rose-600 tracking-tight';
+                badgeTrainees.textContent = 'منخفض جداً';
+                badgeTrainees.className = 'inline-block px-3 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800';
             }
 
-            // تحديث بطاقات الشعب
+            // بطاقات الشعب
             document.getElementById('txt-sections-pct').textContent = sectionExecRate.toFixed(1) + '%';
             document.getElementById('txt-sections-summary').textContent = `${executedSections} من ${totalSections} شعبة`;
             document.getElementById('txt-sections-total').textContent = `عدد الشعب الإجمالية: ${totalSections}`;
@@ -563,11 +714,17 @@
             document.getElementById('eval-sections-executed').value = executedSections;
             document.getElementById('eval-sections-total').value = totalSections;
 
+            // رسم الدونات
             drawAllCharts(trainerAttendanceRate, traineeAttRate, sectionExecRate);
+
+            // بناء الجداول التفصيلية السفلية
+            renderTrainersTable(trainerRecordsMap);
+            renderSectionsTable(filteredSO09, traineeAttRate);
+            renderST06Table(filteredST06);
         }
 
         function drawAllCharts(trainerRate, traineeRate, sectionRate) {
-            // 1. نصف دونات المدربين
+            // نصف دونات المدربين
             if (chartTrainers) chartTrainers.destroy();
             const ctxTrainers = document.getElementById('gauge-trainers').getContext('2d');
             chartTrainers = new Chart(ctxTrainers, {
@@ -585,7 +742,8 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
             });
 
-            // 2. دونات المتدربين الكاملة
+            // دونات المتدربين الكاملة (تأخذ لون أخضر إذا >= 80%، وبرتقالي إذا أقل)
+            let traineeColor = traineeRate >= 80 ? '#047857' : (traineeRate >= 60 ? '#d97706' : '#e11d48');
             if (chartTrainees) chartTrainees.destroy();
             const ctxTrainees = document.getElementById('donut-trainees').getContext('2d');
             chartTrainees = new Chart(ctxTrainees, {
@@ -593,7 +751,7 @@
                 data: {
                     datasets: [{
                         data: [traineeRate, Math.max(0, 100 - traineeRate)],
-                        backgroundColor: [traineeRate >= 80 ? '#047857' : '#d97706', '#f1f5f9'],
+                        backgroundColor: [traineeColor, '#f1f5f9'],
                         borderWidth: 0,
                         cutout: '78%'
                     }]
@@ -601,7 +759,7 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
             });
 
-            // 3. نصف دونات الشعب
+            // نصف دونات الشعب
             if (chartSections) chartSections.destroy();
             const ctxSections = document.getElementById('gauge-sections').getContext('2d');
             chartSections = new Chart(ctxSections, {
@@ -619,6 +777,110 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
             });
         }
+
+        // 1. تعبئة جدول بيانات المدربين
+        function renderTrainersTable(trainersMap) {
+            const tbody = document.getElementById('table-trainers-body');
+            tbody.innerHTML = '';
+            
+            const sortedTrainers = Object.keys(trainersMap).sort((a, b) => trainersMap[b] - trainersMap[a]);
+            sortedTrainers.forEach(trainer => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-colors';
+                tr.innerHTML = `
+                    <td class="p-3 text-slate-800 font-bold">${trainer}</td>
+                    <td class="p-3 text-center text-slate-700 font-extrabold bg-slate-50/50">${trainersMap[trainer]}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 2. تعبئة جدول تحليل الشعب (المتسبب في النقص أو الرفع)
+        function renderSectionsTable(sections, overallRate) {
+            const tbody = document.getElementById('table-sections-body');
+            tbody.innerHTML = '';
+
+            sections.forEach(row => {
+                const prep = parseInt(row['إجمالي التحضير'] || 0) || 0;
+                const present = parseInt(row['تحضير مسجل'] || 0) || 0;
+                const absent = parseInt(row['غياب مسجل'] || 0) || 0;
+                const teacherRate = parseFloat(row['نسبة التحضير'] || 0) || 0;
+                const sectionAttRate = prep > 0 ? ((present / prep) * 100) : 0;
+
+                // تحليل الأثر والمتسبب
+                let impactBadge = '';
+                if (teacherRate < 100) {
+                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800"><i class="fa-solid fa-triangle-exclamation"></i> رصد متأخر من المدرب</span>`;
+                } else if (sectionAttRate === 100) {
+                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800"><i class="fa-solid fa-arrow-trend-up"></i> رفع النسبة (حضور 100%)</span>`;
+                } else if (sectionAttRate < 50) {
+                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800"><i class="fa-solid fa-arrow-trend-down"></i> سبب خفض النسبة (غياب مرتفع)</span>`;
+                } else {
+                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">أداء مستقر</span>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-colors';
+                tr.innerHTML = `
+                    <td class="p-3 text-slate-800 font-bold">${row['اسم المدرب'] || '-'}</td>
+                    <td class="p-3 text-slate-600">${row['اسم المقرر'] || '-'}</td>
+                    <td class="p-3 text-center font-bold text-slate-700">${row['إجمالي المتدربين'] || 0}</td>
+                    <td class="p-3 text-center text-slate-500">${prep}</td>
+                    <td class="p-3 text-center text-emerald-600 font-bold">${present}</td>
+                    <td class="p-3 text-center text-rose-600 font-bold">${absent}</td>
+                    <td class="p-3 text-center font-extrabold ${sectionAttRate >= 80 ? 'text-emerald-700' : 'text-amber-600'}">${sectionAttRate.toFixed(1)}%</td>
+                    <td class="p-3 text-center font-bold ${teacherRate >= 100 ? 'text-emerald-700' : 'text-rose-600'}">${teacherRate.toFixed(0)}%</td>
+                    <td class="p-3 text-center">${impactBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 3. تعبئة جدول ST06
+        function renderST06Table(st06List) {
+            const tbody = document.getElementById('table-st06-body');
+            tbody.innerHTML = '';
+
+            st06List.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-colors';
+                tr.innerHTML = `
+                    <td class="p-3 text-slate-700 font-medium">${r['الفصل التدريبي'] || '-'}</td>
+                    <td class="p-3 text-slate-500">${r['رمز المنطقة'] || '-'}</td>
+                    <td class="p-3 text-slate-700">${r['المنطقة'] || '-'}</td>
+                    <td class="p-3 text-slate-500">${r['رمز الوحدة التدريبية'] || '-'}</td>
+                    <td class="p-3 text-slate-700">${r['الوحدة التدريبية بالمختصر'] || '-'}</td>
+                    <td class="p-3 text-slate-700">${r['الوحدة التدريبية'] || '-'}</td>
+                    <td class="p-3 text-slate-700">${r['المرحلة'] || '-'}</td>
+                    <td class="p-3 text-slate-800 font-bold">${r['القسم'] || '-'}</td>
+                    <td class="p-3 text-emerald-800 font-bold">${r['البرنامج'] || '-'}</td>
+                    <td class="p-3 text-center font-extrabold text-emerald-700 bg-slate-50/50">${r['عدد المتدربين'] || 0}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // آليات البحث الفوري في الجداول الثلاثة
+        document.getElementById('search-trainers').addEventListener('input', function(e) {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('#table-trainers-body tr').forEach(r => {
+                r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+            });
+        });
+
+        document.getElementById('search-sections').addEventListener('input', function(e) {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('#table-sections-body tr').forEach(r => {
+                r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+            });
+        });
+
+        document.getElementById('search-st06').addEventListener('input', function(e) {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('#table-st06-body tr').forEach(r => {
+                r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+            });
+        });
     </script>
 </body>
 </html>
