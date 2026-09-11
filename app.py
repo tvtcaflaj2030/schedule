@@ -16,7 +16,7 @@ SCHEDULES_PDF = os.path.join(BASE_DIR, "schedules.pdf")
 ATTENDANCE_PDF = os.path.join(BASE_DIR, "attendance.pdf")
 DB_PATH = os.path.join(BASE_DIR, "attendance_archive.db")
 
-# --- تهيئة قاعدة بيانات الأرشيف والتقارير المعتمدة ---
+# --- تهيئة وتحديث قاعدة بيانات الأرشيف والتقارير المعتمدة ---
 def init_attendance_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -43,7 +43,7 @@ def init_attendance_db():
 
 init_attendance_db()
 
-# القائمة الثابتة بالخدمات الجديدة والمصححة تماماً
+# القائمة الثابتة بالخدمات للمتدربين
 SERVICES_LIST = [
     {
         "title": "الخدمات الذاتية للمتدربين (رايات)",
@@ -171,7 +171,7 @@ def get_schedule_image():
     except Exception as e:
         return str(e), 500
 
-# --- لوحة التحكم وإدارة الجداول والتحضير ---
+# --- لوحة التحكم والإدارة ---
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -214,14 +214,16 @@ def admin_logout():
     session.pop("logged_in", None)
     return redirect(url_for("admin"))
 
-# 1. شاشة متابعة سير العملية التدريبية
+# --- مسارات نظام متابعة التدريب والأرشيف والاعتماد ---
+
+# 1. شاشة متابعة سير العملية التدريبية الرئيسية
 @app.route('/admin/attendance')
 def attendance_tracker():
     if not session.get("logged_in"):
         return redirect(url_for("admin"))
     return render_template('attendance_tracker.html', is_archived_view=False)
 
-# 2. مسار حفظ واعتماد التقرير
+# 2. مسار اعتماد وحفظ التقرير (Snapshot)
 @app.route('/admin/attendance/approve', methods=['POST'])
 def approve_report():
     if not session.get("logged_in"):
@@ -272,7 +274,7 @@ def approve_report():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-# 3. شاشة سجل الأرشيف للتقارير المعتمدة
+# 3. شاشة سجل الأرشيف للتقارير المعتمدة (تضم الحقول الإحصائية الجديدة)
 @app.route('/admin/attendance/archive')
 def attendance_archive():
     if not session.get("logged_in"):
@@ -282,7 +284,7 @@ def attendance_archive():
     cursor = conn.cursor()
     cursor.execute('''
         SELECT id, approval_date, training_week, training_term, department,
-               trainees_count, trainees_attendance_rate,
+               trainees_count, trainees_present_count, trainees_attendance_rate,
                trainers_attendance_rate, sections_total, sections_executed, notes
         FROM approved_reports
         ORDER BY id DESC
@@ -291,7 +293,7 @@ def attendance_archive():
     conn.close()
     return render_template('attendance_archive.html', reports=reports)
 
-# 4. فتح تقرير مؤرشف ببياناته ورسوماته السابقة للطباعة أو الاستعراض
+# 4. فتح واستعراض أي تقرير مؤرشف مسبقاً بكامل رسوماته ونموذجه الرسمي
 @app.route('/admin/attendance/archive/<int:report_id>')
 def get_archived_report(report_id):
     if not session.get("logged_in"):
