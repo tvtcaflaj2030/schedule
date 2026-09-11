@@ -18,18 +18,17 @@
         body { font-family: 'Cairo', sans-serif; }
 
         /* ======================================================== */
-        /* قواعد الطباعة الدقيقة بنظام صفحات A4 (A4 Print Layout)    */
+        /* قواعد الطباعة الدقيقة لصفحات A4 بالكامل                  */
         /* ======================================================== */
         @page {
             size: A4 portrait;
-            margin: 15mm 12mm 15mm 12mm;
+            margin: 10mm 10mm 10mm 10mm;
         }
 
         @media print {
             body {
                 background-color: #ffffff !important;
                 color: #000000 !important;
-                font-size: 11pt !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
@@ -42,16 +41,23 @@
                 display: block !important;
             }
 
-            /* تحويل الشبكات العريضة إلى تخطيط متناسق لصفحة A4 */
-            .print-block {
-                display: block !important;
-                width: 100% !important;
-                box-shadow: none !important;
-                border: 1px solid #cbd5e1 !important;
-                margin-bottom: 12px !important;
+            /* الحفاظ على توزيع الأعمدة بكامل عرض الصفحة A4 */
+            .print-grid-3 {
+                display: grid !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                gap: 12px !important;
             }
 
-            /* منع انشطار عناصر الجداول والكروت بين الصفحات */
+            .print-grid-4 {
+                display: grid !important;
+                grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+                gap: 8px !important;
+            }
+
+            .print-col-span-2 {
+                grid-column: span 2 / span 2 !important;
+            }
+
             .page-break-avoid {
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
@@ -62,29 +68,15 @@
                 break-before: page !important;
             }
 
-            /* تثبيت أحجام البطاقات في صف A4 متوازن */
-            .print-kpi-grid {
-                display: table !important;
-                width: 100% !important;
-                table-layout: fixed !important;
-                margin-bottom: 15px !important;
-            }
-
-            .print-kpi-col {
-                display: table-cell !important;
-                padding: 6px !important;
-                vertical-align: top !important;
-            }
-
             table {
                 width: 100% !important;
                 border-collapse: collapse !important;
-                font-size: 9.5pt !important;
+                font-size: 8.5pt !important;
             }
 
             th, td {
                 border: 1px solid #cbd5e1 !important;
-                padding: 6px 8px !important;
+                padding: 4px 6px !important;
             }
 
             th {
@@ -100,7 +92,7 @@
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen">
 
-    <!-- شريط الرأس في الشاشة (مخفي عند الطباعة) -->
+    <!-- شريط الرأس -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -132,21 +124,19 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-        <!-- ======================================================== -->
-        <!-- الترويسة الرسمية الخاصة بصفحة الطباعة A4 فقط              -->
-        <!-- ======================================================== -->
-        <div class="print-only border-b-2 border-slate-800 pb-4 mb-6">
-            <div class="flex justify-between items-center text-xs text-slate-700">
-                <div class="space-y-1">
-                    <p class="font-extrabold text-sm text-slate-900">المملكة العربية السعودية</p>
-                    <p class="font-bold">المؤسسة العامة للتدريب التقني والمهني</p>
-                    <p id="print-header-unit" class="font-bold">المعهد الصناعي الثانوي بالأفلاج</p>
+        <!-- ترويسة صفحة الطباعة A4 الرسمية -->
+        <div class="print-only border-b-2 border-slate-800 pb-3 mb-4">
+            <div class="flex justify-between items-center text-xs text-slate-800">
+                <div class="space-y-0.5">
+                    <p class="font-extrabold text-xs">المملكة العربية السعودية</p>
+                    <p class="font-bold text-[11px]">المؤسسة العامة للتدريب التقني والمهني</p>
+                    <p class="font-bold text-[11px]">المعهد الصناعي الثانوي بالأفلاج</p>
                 </div>
-                <div class="text-center space-y-1">
-                    <h2 class="text-base font-black text-slate-900">تقرير متابعة سير العملية التدريبية</h2>
-                    <p id="print-header-scope" class="font-bold text-xs bg-slate-100 px-3 py-0.5 rounded-md inline-block">القسم: الحاسب وتقنية المعلومات</p>
+                <div class="text-center space-y-0.5">
+                    <h2 class="text-sm font-black text-slate-900">تقرير متابعة سير العملية التدريبية</h2>
+                    <p id="print-header-scope" class="font-bold text-xs bg-slate-100 px-3 py-0.5 rounded-md inline-block">القسم: كافة الأقسام</p>
                 </div>
-                <div class="text-left space-y-1">
+                <div class="text-left space-y-0.5 text-[11px]">
                     <p><span class="font-bold">الفصل:</span> <span id="print-header-term">الفصل الأول 1448</span></p>
                     <p><span class="font-bold">الأسبوع:</span> <span id="print-header-week">الأسبوع الثاني</span></p>
                     <p><span class="font-bold">التاريخ:</span> <span id="print-header-date">2026-09-11</span></p>
@@ -154,7 +144,7 @@
             </div>
         </div>
 
-        <!-- منطقة رفع الملفات (تختفي عند الطباعة) -->
+        <!-- منطقة الرفع -->
         <section class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm no-print space-y-4">
             <div class="flex items-center justify-between">
                 <div>
@@ -162,7 +152,7 @@
                         <i class="fa-solid fa-cloud-arrow-up text-emerald-700"></i>
                         رفع تقارير رايات لبدء التحليل
                     </h2>
-                    <p class="text-xs text-slate-500 mt-1">المعالجة محلية بالكامل. ارفع ملف كل قسم بمفرده، ثم اعتمد التقرير واحفظه بالأرشيف.</p>
+                    <p class="text-xs text-slate-500 mt-1">المعالجة محلية 100% داخل المتصفح. ارفع ملفات القسم ثم اعتمد التقرير واحفظه.</p>
                 </div>
                 <button onclick="clearAllData()" class="text-xs font-bold text-slate-400 hover:text-rose-600 flex items-center gap-1">
                     <i class="fa-solid fa-rotate-right"></i> تصفير الواجهة
@@ -170,7 +160,6 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- رفع SO09 -->
                 <div class="relative border-2 border-dashed border-slate-300 hover:border-emerald-600 bg-slate-50/70 hover:bg-emerald-50/40 rounded-2xl p-6 text-center transition-all cursor-pointer">
                     <input type="file" id="file-so09" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                     <div class="space-y-2">
@@ -178,12 +167,10 @@
                             <i class="fa-solid fa-file-csv"></i>
                         </div>
                         <h3 class="font-bold text-slate-700 text-sm">تقرير SO09 (الشعب والتحضير)</h3>
-                        <p class="text-xs text-slate-400">ملف إحصائية حضور الشعب الأسبوعي (CSV)</p>
                         <span id="name-so09" class="inline-block text-xs font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-600">لم يتم الاختيار</span>
                     </div>
                 </div>
 
-                <!-- رفع ST06 -->
                 <div class="relative border-2 border-dashed border-slate-300 hover:border-emerald-600 bg-slate-50/70 hover:bg-emerald-50/40 rounded-2xl p-6 text-center transition-all cursor-pointer">
                     <input type="file" id="file-st06" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                     <div class="space-y-2">
@@ -191,26 +178,24 @@
                             <i class="fa-solid fa-users"></i>
                         </div>
                         <h3 class="font-bold text-slate-700 text-sm">تقرير ST06 (المتدربين المستمرين)</h3>
-                        <p class="text-xs text-slate-400">ملف حصر المتدربين والبرامج (CSV)</p>
                         <span id="name-st06" class="inline-block text-xs font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-600">لم يتم الاختيار</span>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- حالة الانتظار قبل الرفع -->
+        <!-- الانتظار -->
         <div id="empty-state" class="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-sm space-y-3 no-print">
             <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-2xl mx-auto">
                 <i class="fa-solid fa-chart-pie"></i>
             </div>
             <h3 class="text-base font-bold text-slate-700">بانتظار رفع ملفات رايات</h3>
-            <p class="text-xs text-slate-400 max-w-md mx-auto">ارفع ملفي SO09 و ST06 لاستخراج لوحة المؤشرات، الرسوم البيانية، ونموذج التقييم الرسمي المعتمد.</p>
+            <p class="text-xs text-slate-400 max-w-md mx-auto">ارفع ملفي SO09 و ST06 لاستخراج لوحة المؤشرات، الرسوم البيانية، ونموذج التقييم الرسمي.</p>
         </div>
 
-        <!-- منطقة التحليل والنتائج الكاملة -->
-        <div id="analytics-section" class="space-y-6 hidden">
+        <!-- منطقة التحليل والنتائج -->
+        <div id="analytics-section" class="space-y-5 hidden">
 
-            <!-- عنوان لوحة المؤشرات -->
             <div class="flex items-center justify-between pt-1 no-print">
                 <div class="flex items-center gap-2 text-slate-800 font-extrabold text-base">
                     <i class="fa-solid fa-gauge-simple-high text-emerald-700"></i>
@@ -219,7 +204,7 @@
                 </div>
             </div>
 
-            <!-- شريط تحديد نطاق التحليل والعرض -->
+            <!-- نطاق التحديد -->
             <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 no-print">
                 <div class="flex items-center gap-3 w-full md:w-auto">
                     <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-base shrink-0">
@@ -232,13 +217,13 @@
                 </div>
 
                 <div class="w-full md:w-80">
-                    <select id="select-department" class="w-full bg-slate-50 border-2 border-emerald-600/30 hover:border-emerald-600 rounded-xl px-4 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-600 transition-all cursor-pointer">
+                    <select id="select-department" class="w-full bg-slate-50 border-2 border-emerald-600/30 hover:border-emerald-600 rounded-xl px-4 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-600 cursor-pointer">
                         <option value="ALL">كافة الأقسام التدريبية (المنشأة كاملة)</option>
                     </select>
                 </div>
             </section>
 
-            <!-- مدخلات حساب حضور المدربين التفاعلية -->
+            <!-- مدخلات المدربين -->
             <section class="space-y-3 no-print">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-1.5">
@@ -257,211 +242,171 @@
                 </div>
             </section>
 
-            <!-- ======================================================== -->
-            <!-- المؤشرات الثلاثة الدائرية الكبرى (متوافقة مع A4 والطباعة) -->
-            <!-- ======================================================== -->
+            <!-- 1. المؤشرات الدائرية (تم ضبطها لتملأ الورقة بالكامل في الطباعة) -->
             <section class="page-break-avoid">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <!-- 1. مؤشر نسبة حضور المدربين -->
-                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col items-center justify-between text-center min-h-[260px] print-block">
+                <div class="grid grid-cols-3 gap-3 print-grid-3">
+                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col items-center justify-between text-center min-h-[230px]">
                         <span class="text-xs font-bold text-slate-600">نسبة حضور المدربين</span>
-                        <div class="w-44 h-24 relative flex items-end justify-center my-2">
+                        <div class="w-40 h-20 relative flex items-end justify-center my-1">
                             <canvas id="gauge-trainers"></canvas>
                             <div class="absolute inset-0 flex flex-col items-center justify-end pb-1">
-                                <span id="txt-trainers-pct" class="text-2xl font-black text-slate-800 tracking-tight">0%</span>
-                                <span id="badge-trainers-status" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 mt-1">ممتاز</span>
+                                <span id="txt-trainers-pct" class="text-xl font-black text-slate-800 tracking-tight">0%</span>
+                                <span id="badge-trainers-status" class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-100 text-emerald-800 mt-0.5">ممتاز</span>
                             </div>
                         </div>
-                        <div class="pt-2 border-t border-slate-100 w-full space-y-0.5">
+                        <div class="pt-1.5 border-t border-slate-100 w-full space-y-0.5">
                             <p id="txt-trainers-opportunities" class="text-xs font-bold text-slate-700">0 من 0 فرصة حضور</p>
-                            <p id="txt-trainers-total" class="text-[11px] text-slate-400">إجمالي المدربين: 0</p>
+                            <p id="txt-trainers-total" class="text-[10px] text-slate-400">إجمالي المدربين: 0</p>
                         </div>
                     </div>
 
-                    <!-- 2. مؤشر نسبة حضور المتدربين (يتحول للأخضر عند >= 80% أو 100%) -->
-                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col items-center justify-between text-center min-h-[260px] print-block">
+                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col items-center justify-between text-center min-h-[230px]">
                         <span class="text-xs font-bold text-slate-600">نسبة حضور المتدربين</span>
-                        <div class="w-32 h-32 relative flex items-center justify-center my-1">
+                        <div class="w-28 h-28 relative flex items-center justify-center my-1">
                             <canvas id="donut-trainees"></canvas>
                             <div class="absolute inset-0 flex items-center justify-center">
-                                <span id="txt-trainees-pct" class="text-2xl font-black text-emerald-700 tracking-tight">0%</span>
+                                <span id="txt-trainees-pct" class="text-xl font-black text-emerald-700 tracking-tight">0%</span>
                             </div>
                         </div>
                         <div class="w-full space-y-0.5">
-                            <span id="badge-trainees-status" class="inline-block px-3 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">ممتاز</span>
+                            <span id="badge-trainees-status" class="inline-block px-2.5 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-100 text-emerald-800">ممتاز</span>
                             <p id="txt-trainees-counts" class="text-xs font-bold text-slate-700">0 من 0 تحضيراً</p>
-                            <p id="txt-records-count" class="text-[11px] text-slate-400">عدد السجلات المرتبطة: 0</p>
+                            <p id="txt-records-count" class="text-[10px] text-slate-400">عدد السجلات المرتبطة: 0</p>
                         </div>
                     </div>
 
-                    <!-- 3. مؤشر نسبة تنفيذ الشعب -->
-                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col items-center justify-between text-center min-h-[260px] print-block">
+                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col items-center justify-between text-center min-h-[230px]">
                         <span class="text-xs font-bold text-slate-600">نسبة تنفيذ الشعب</span>
-                        <div class="w-44 h-24 relative flex items-end justify-center my-2">
+                        <div class="w-40 h-20 relative flex items-end justify-center my-1">
                             <canvas id="gauge-sections"></canvas>
                             <div class="absolute inset-0 flex flex-col items-center justify-end pb-1">
-                                <span id="txt-sections-pct" class="text-2xl font-black text-slate-800 tracking-tight">0%</span>
-                                <span id="badge-sections-status" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 mt-1">ممتاز</span>
+                                <span id="txt-sections-pct" class="text-xl font-black text-slate-800 tracking-tight">0%</span>
+                                <span id="badge-sections-status" class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-100 text-emerald-800 mt-0.5">ممتاز</span>
                             </div>
                         </div>
-                        <div class="pt-2 border-t border-slate-100 w-full space-y-0.5">
+                        <div class="pt-1.5 border-t border-slate-100 w-full space-y-0.5">
                             <p id="txt-sections-summary" class="text-xs font-bold text-slate-700">0 من 0 شعبة</p>
-                            <p id="txt-sections-total" class="text-[11px] text-slate-400">عدد الشعب الإجمالية: 0</p>
+                            <p id="txt-sections-total" class="text-[10px] text-slate-400">عدد الشعب الإجمالية: 0</p>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- ======================================================== -->
-            <!-- بطاقات الإحصاءات المستطيلة (10 بطاقات)                   -->
-            <!-- ======================================================== -->
+            <!-- 2. بطاقات الإحصاءات (4 أعمدة كاملة العرض في الطباعة) -->
             <section class="page-break-avoid">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                    <div class="bg-white p-3.5 rounded-xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between print-block">
-                        <div>
-                            <p class="text-[10px] text-slate-400 font-bold">إجمالي عدد المدربين</p>
-                            <h3 id="card-trainers-total" class="text-xl font-black text-slate-800 mt-0.5">0</h3>
-                        </div>
-                        <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-sm no-print"><i class="fa-solid fa-users"></i></div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 text-xs print-grid-4">
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold">إجمالي عدد المدربين</p>
+                        <h3 id="card-trainers-total" class="text-lg font-black text-slate-800 mt-0.5">0</h3>
                     </div>
 
-                    <div class="bg-white p-3.5 rounded-xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between print-block">
-                        <div>
-                            <p class="text-[10px] text-slate-400 font-bold">فرص الحضور المحققة</p>
-                            <h3 id="card-trainers-opp" class="text-base font-black text-slate-800 mt-0.5">0 / 0</h3>
-                            <span id="card-trainers-opp-pct" class="text-[9.5px] font-bold text-emerald-700">النسبة 0%</span>
-                        </div>
-                        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center text-sm no-print"><i class="fa-solid fa-user-check"></i></div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold">فرص الحضور المحققة</p>
+                        <h3 id="card-trainers-opp" class="text-base font-black text-slate-800 mt-0.5">0 / 0</h3>
+                        <span id="card-trainers-opp-pct" class="text-[9px] font-bold text-emerald-700">النسبة 0%</span>
                     </div>
 
-                    <div class="bg-white p-3.5 rounded-xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between print-block">
-                        <div>
-                            <p class="text-[10px] text-slate-400 font-bold">إجمالي التحضير</p>
-                            <h3 id="card-prep-total" class="text-xl font-black text-slate-800 mt-0.5">0</h3>
-                        </div>
-                        <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-sm no-print"><i class="fa-solid fa-clipboard-list"></i></div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold">إجمالي التحضير</p>
+                        <h3 id="card-prep-total" class="text-lg font-black text-slate-800 mt-0.5">0</h3>
                     </div>
 
-                    <div class="bg-white p-3.5 rounded-xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between print-block">
-                        <div>
-                            <p class="text-[10px] text-slate-400 font-bold">التحضير المسجل</p>
-                            <h3 id="card-prep-registered" class="text-xl font-black text-slate-800 mt-0.5">0</h3>
-                        </div>
-                        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center text-sm no-print"><i class="fa-solid fa-clipboard-check"></i></div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold">التحضير المسجل</p>
+                        <h3 id="card-prep-registered" class="text-lg font-black text-slate-800 mt-0.5">0</h3>
                     </div>
 
-                    <div class="bg-white p-3.5 rounded-xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between print-block">
-                        <div>
-                            <p class="text-[10px] text-slate-400 font-bold">إجمالي عدد المتدربين</p>
-                            <h3 id="card-trainees-total" class="text-xl font-black text-slate-800 mt-0.5">0</h3>
-                        </div>
-                        <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-sm no-print"><i class="fa-solid fa-graduation-cap"></i></div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold">إجمالي عدد المتدربين</p>
+                        <h3 id="card-trainees-total" class="text-lg font-black text-slate-800 mt-0.5">0</h3>
                     </div>
 
-                    <div class="bg-white p-3.5 rounded-xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between print-block">
-                        <div>
-                            <p class="text-[10px] text-slate-400 font-bold">عدد المتدربين الحاضرين</p>
-                            <h3 id="card-trainees-present" class="text-xl font-black text-slate-800 mt-0.5">0</h3>
-                        </div>
-                        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center text-sm no-print"><i class="fa-solid fa-user-graduate"></i></div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold">عدد المتدربين الحاضرين</p>
+                        <h3 id="card-trainees-present" class="text-lg font-black text-slate-800 mt-0.5">0</h3>
                     </div>
 
-                    <div class="bg-white p-3.5 rounded-xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between print-block">
-                        <div>
-                            <p class="text-[10px] text-slate-400 font-bold">عدد الشعب الإجمالية</p>
-                            <h3 id="card-sections-total" class="text-xl font-black text-slate-800 mt-0.5">0</h3>
-                        </div>
-                        <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-sm no-print"><i class="fa-solid fa-layer-group"></i></div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold">عدد الشعب الإجمالية</p>
+                        <h3 id="card-sections-total" class="text-lg font-black text-slate-800 mt-0.5">0</h3>
                     </div>
 
-                    <div class="bg-white p-3.5 rounded-xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between print-block">
-                        <div>
-                            <p class="text-[10px] text-slate-400 font-bold">عدد الشعب المنفذة</p>
-                            <h3 id="card-sections-executed" class="text-xl font-black text-slate-800 mt-0.5">0</h3>
-                        </div>
-                        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center text-sm no-print"><i class="fa-solid fa-square-check"></i></div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold">عدد الشعب المنفذة</p>
+                        <h3 id="card-sections-executed" class="text-lg font-black text-slate-800 mt-0.5">0</h3>
                     </div>
 
-                    <div class="bg-white p-3.5 rounded-xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between col-span-2 print-block">
-                        <div>
-                            <p class="text-[10px] text-slate-400 font-bold">عدد البرامج التدريبية</p>
-                            <h3 id="card-programs-count" class="text-xl font-black text-slate-800 mt-0.5">0</h3>
-                        </div>
-                        <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-sm no-print"><i class="fa-solid fa-book-open"></i></div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm col-span-2 print-col-span-2">
+                        <p class="text-[10px] text-slate-400 font-bold">عدد البرامج التدريبية</p>
+                        <h3 id="card-programs-count" class="text-lg font-black text-slate-800 mt-0.5">0</h3>
                     </div>
 
-                    <div class="bg-white p-3.5 rounded-xl border-r-4 border-emerald-700 border border-slate-200 shadow-sm flex items-center justify-between col-span-2 print-block">
-                        <div>
-                            <p class="text-[10px] text-slate-400 font-bold">عدد الأقسام التدريبية</p>
-                            <h3 id="card-departments-count" class="text-xl font-black text-slate-800 mt-0.5">0</h3>
-                        </div>
-                        <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-sm no-print"><i class="fa-solid fa-boxes-stacked"></i></div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm col-span-2 print-col-span-2">
+                        <p class="text-[10px] text-slate-400 font-bold">عدد الأقسام التدريبية</p>
+                        <h3 id="card-departments-count" class="text-lg font-black text-slate-800 mt-0.5">0</h3>
                     </div>
                 </div>
             </section>
 
-            <!-- ======================================================== -->
-            <!-- نموذج تفاصيل التقييم الرسمي (مع مساحة التوقيع عند الطباعة) -->
-            <!-- ======================================================== -->
-            <fieldset class="bg-white rounded-2xl p-5 border-2 border-slate-300 shadow-sm space-y-3 page-break-avoid print-block">
-                <legend class="text-xs font-bold text-slate-700 px-3 flex items-center gap-2">
+            <!-- 3. نموذج التقييم الرسمي مع مساحة التوقيع -->
+            <fieldset class="bg-white rounded-2xl p-4 border border-slate-300 shadow-sm space-y-2 page-break-avoid w-full">
+                <legend class="text-xs font-bold text-slate-700 px-2 flex items-center gap-2">
                     <i class="fa-solid fa-file-signature text-emerald-700"></i> تفاصيل التقييم التنفيذي :
                 </legend>
 
-                <div class="space-y-2 max-w-2xl mx-auto text-xs">
+                <div class="space-y-1.5 w-full text-xs">
                     <div class="flex items-center justify-between gap-4">
                         <label class="font-bold text-slate-700 w-1/2">القسم التدريبي :</label>
-                        <input type="text" id="eval-dept" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1 font-bold text-slate-800 focus:outline-none">
+                        <input type="text" id="eval-dept" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-bold text-slate-800">
                     </div>
 
                     <div class="flex items-center justify-between gap-4">
                         <label class="font-bold text-slate-700 w-1/2">إجمالي عدد المدربين / المدربات في المنشأة :</label>
-                        <input type="text" id="eval-trainers-total" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1 font-bold text-slate-800 focus:outline-none">
+                        <input type="text" id="eval-trainers-total" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-bold text-slate-800">
                     </div>
 
                     <div class="flex items-center justify-between gap-4">
                         <label class="font-bold text-slate-700 w-1/2">عدد المدربين / المدربات الحاضرين للأسبوع :</label>
-                        <input type="text" id="eval-trainers-present" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1 font-bold text-slate-800 focus:outline-none">
+                        <input type="text" id="eval-trainers-present" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-bold text-slate-800">
                     </div>
 
                     <div class="flex items-center justify-between gap-4">
                         <label class="font-bold text-slate-700 w-1/2">أسباب الغيابات :</label>
-                        <input type="text" id="eval-absence-reasons" value="لا يوجد" class="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1 font-bold text-slate-800 focus:outline-none">
+                        <input type="text" id="eval-absence-reasons" value="لا يوجد" class="w-1/2 bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-bold text-slate-800">
                     </div>
 
                     <div class="flex items-center justify-between gap-4">
                         <label class="font-bold text-slate-700 w-1/2">إجمالي عدد المتدربين / المتدربات في المنشأة :</label>
-                        <input type="text" id="eval-trainees-total" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1 font-bold text-slate-800 focus:outline-none">
+                        <input type="text" id="eval-trainees-total" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-bold text-slate-800">
                     </div>
 
                     <div class="flex items-center justify-between gap-4">
                         <label class="font-bold text-slate-700 w-1/2">عدد المتدربين / المتدربات الحاضرين للأسبوع :</label>
-                        <input type="text" id="eval-trainees-present" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1 font-bold text-slate-800 focus:outline-none">
+                        <input type="text" id="eval-trainees-present" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-bold text-slate-800">
                     </div>
 
                     <div class="flex items-center justify-between gap-4">
                         <label class="font-bold text-slate-700 w-1/2">عدد الشعب المنفذة :</label>
-                        <input type="text" id="eval-sections-executed" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1 font-bold text-slate-800 focus:outline-none">
+                        <input type="text" id="eval-sections-executed" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-bold text-slate-800">
                     </div>
 
                     <div class="flex items-center justify-between gap-4">
                         <label class="font-bold text-slate-700 w-1/2">عدد الشعب الاجمالي :</label>
-                        <input type="text" id="eval-sections-total" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1 font-bold text-slate-800 focus:outline-none">
+                        <input type="text" id="eval-sections-total" value="" class="w-1/2 bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-bold text-slate-800">
                     </div>
                 </div>
 
-                <!-- مساحة التوقيع والاعتماد (تظهر في الطباعة الرسمية A4) -->
-                <div class="print-only pt-6 mt-4 border-t border-slate-300">
-                    <div class="flex justify-between items-center text-xs font-bold text-slate-800 px-6">
-                        <div class="text-center space-y-4">
+                <div class="print-only pt-5 mt-3 border-t border-slate-300">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-800 px-4">
+                        <div class="text-center space-y-3">
                             <p>مُعد التقرير / مشرف التدريب</p>
                             <p class="text-slate-400">....................................</p>
                         </div>
-                        <div class="text-center space-y-4">
+                        <div class="text-center space-y-3">
                             <p>رئيس القسم التدريبي</p>
                             <p class="text-slate-400">....................................</p>
                         </div>
-                        <div class="text-center space-y-4">
+                        <div class="text-center space-y-3">
                             <p>وكيل شؤون المتدربين / المدير</p>
                             <p class="text-slate-400">....................................</p>
                         </div>
@@ -469,13 +414,11 @@
                 </div>
             </fieldset>
 
-            <!-- ======================================================== -->
-            <!-- الجداول التفصيلية (تنتقل لصفحة تالية بانتظام في A4)        -->
-            <!-- ======================================================== -->
-            <div class="space-y-6 pt-2 page-break-before">
+            <!-- 4. الجداول التفصيلية (تبدأ في صفحة جديدة في الطباعة) -->
+            <div class="space-y-5 pt-1 page-break-before">
 
-                <!-- 1. جدول بيانات المدربين -->
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden print-block page-break-avoid">
+                <!-- جدول بيانات المدربين -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden page-break-avoid">
                     <div class="p-3 border-b border-slate-100 flex items-center justify-between gap-4 bg-slate-50/70">
                         <h3 class="font-extrabold text-slate-800 text-xs flex items-center gap-2">
                             <i class="fa-solid fa-chalkboard-user text-emerald-700"></i>
@@ -499,13 +442,13 @@
                     </div>
                 </div>
 
-                <!-- 2. جدول التحليل الذكي للشعب وأثرها على النسبة -->
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden print-block">
+                <!-- جدول تفاصيل الشعب (الأثر معتمد على نسبة رصد رايات فقط) -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     <div class="p-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4 bg-slate-50/70">
                         <div>
                             <h3 class="font-extrabold text-slate-800 text-xs flex items-center gap-2">
                                 <i class="fa-solid fa-chart-line text-emerald-700"></i>
-                                تفاصيل الشعب التدريبية وتحليل الأثر (المتسبب في الرفع أو النقص)
+                                تفاصيل الشعب التدريبية وتحليل أثر الرصد
                             </h3>
                         </div>
                         <div class="w-56 no-print">
@@ -533,8 +476,8 @@
                     </div>
                 </div>
 
-                <!-- 3. جدول بيانات المتدربين (ST06) -->
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden print-block page-break-avoid">
+                <!-- جدول ST06 -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden page-break-avoid">
                     <div class="p-3 border-b border-slate-100 flex items-center justify-between gap-4 bg-slate-50/70">
                         <h3 class="font-extrabold text-slate-800 text-xs flex items-center gap-2">
                             <i class="fa-solid fa-users-viewfinder text-emerald-700"></i>
@@ -568,9 +511,7 @@
 
     </main>
 
-    <!-- ======================================================== -->
-    <!-- نافذة تأكيد اعتماد التقرير (Approval Modal)              -->
-    <!-- ======================================================== -->
+    <!-- نافذة الاعتماد -->
     <div id="modal-approve" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-right">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -616,12 +557,7 @@
 
                 <div>
                     <label class="font-bold text-slate-700 block mb-1">ملاحظات الاعتماد (اختياري):</label>
-                    <textarea id="modal-input-notes" rows="2" placeholder="اكتب أي ملاحظة عن سير التدريب أو الإجراءات المتخذة..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-emerald-600"></textarea>
-                </div>
-
-                <div class="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-[11px] leading-relaxed">
-                    <i class="fa-solid fa-circle-info ml-1"></i>
-                    سيتم تخزين لقطة متكاملة من التقرير تتضمن كافة المؤشرات، أرقام المتدربين، والشعب للرجوع إليها مستقبلاً وتصديرها كتقرير رسمي في أي وقت.
+                    <textarea id="modal-input-notes" rows="2" placeholder="اكتب أي ملاحظة..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-emerald-600"></textarea>
                 </div>
             </div>
 
@@ -632,7 +568,6 @@
         </div>
     </div>
 
-    <!-- كود معالجة وتفاعل الصفحة -->
     <script>
         let so09Data = [];
         let st06Data = [];
@@ -641,7 +576,6 @@
         let chartTrainees = null;
         let chartSections = null;
 
-        // دعم فتح تقرير مؤرشف مسبقاً إذا كان ممرراً من السيرفر
         {% if is_archived_view %}
         const archivedPayload = {{ archived_json | safe }};
         window.addEventListener('DOMContentLoaded', () => {
@@ -655,9 +589,8 @@
 
             document.getElementById('empty-state').classList.add('hidden');
             document.getElementById('analytics-section').classList.remove('hidden');
-            document.getElementById('btn-open-approval').classList.add('hidden'); // إخفاء زر الاعتماد إذا كان مستعرضاً من الأرشيف
+            document.getElementById('btn-open-approval').classList.add('hidden');
 
-            // تحديث بيانات الطباعة الرسمية
             document.getElementById('print-header-scope').textContent = 'القسم: ' + (payload.department || '');
             document.getElementById('print-header-week').textContent = payload.training_week || '';
             document.getElementById('print-header-term').textContent = payload.training_term || '';
@@ -795,7 +728,7 @@
             document.getElementById('eval-dept').value = isAll ? 'كافة الأقسام التدريبية' : selectedDept;
             document.getElementById('print-header-scope').textContent = 'القسم: ' + (isAll ? 'كافة الأقسام التدريبية' : selectedDept);
 
-            // 1. فلترة بيانات ST06
+            // 1. حسابات ST06
             let filteredST06 = st06Data;
             if (!isAll && st06Data.length > 0) {
                 filteredST06 = st06Data.filter(r => (r['القسم'] || '').trim() === selectedDept);
@@ -819,7 +752,7 @@
                 totalDepartments = isAll ? (depts.size || 1) : 1;
             }
 
-            // 2. فلترة شُعب SO09
+            // 2. حسابات SO09
             let filteredSO09 = so09Data;
             if (!isAll && so09Data.length > 0) {
                 filteredSO09 = so09Data.filter(r => detectDepartment(r['اسم المقرر']) === selectedDept);
@@ -861,7 +794,6 @@
             let trainerAttendanceRate = totalOpportunities > 0 ? ((attendedOpportunities / totalOpportunities) * 100) : (trainersCount > 0 ? 100 : 0);
             let attendedTrainersPerWeek = (attendedOpportunities / 5).toFixed(2);
 
-            // تحديث مؤشرات المدربين
             if (totalOpportunities > 0) {
                 document.getElementById('trainer-formula-calc').textContent = 
                     `${trainersCount} مدرباً × 5 أيام = ${totalOpportunities} فرصة - ${absentDays} غياب = ${attendedOpportunities} حضور - النسبة ${attendedOpportunities} ÷ ${totalOpportunities} × 100 = ${trainerAttendanceRate.toFixed(1)}%`;
@@ -878,12 +810,10 @@
             document.getElementById('eval-trainers-total').value = trainersCount;
             document.getElementById('eval-trainers-present').value = attendedTrainersPerWeek;
 
-            // حسابات المتدربين والشعب
             let traineeAttRate = totalPrep > 0 ? ((regPrep / totalPrep) * 100) : 0;
             let presentTraineesCalculated = Math.round(totalTraineesST06 * (traineeAttRate / 100));
             let sectionExecRate = totalSections > 0 ? ((executedSections / totalSections) * 100) : 0;
 
-            // بطاقات المتدربين
             document.getElementById('card-trainees-total').textContent = totalTraineesST06;
             document.getElementById('card-programs-count').textContent = totalPrograms;
             document.getElementById('card-departments-count').textContent = totalDepartments;
@@ -897,25 +827,23 @@
             document.getElementById('card-trainees-present').textContent = presentTraineesCalculated;
             document.getElementById('eval-trainees-present').value = presentTraineesCalculated;
 
-            // الألوان الديناميكية لمؤشر المتدربين
             const txtTraineesPct = document.getElementById('txt-trainees-pct');
             const badgeTrainees = document.getElementById('badge-trainees-status');
 
             if (traineeAttRate >= 80) {
-                txtTraineesPct.className = 'text-2xl font-black text-emerald-700 tracking-tight';
+                txtTraineesPct.className = 'text-xl font-black text-emerald-700 tracking-tight';
                 badgeTrainees.textContent = 'ممتاز';
-                badgeTrainees.className = 'inline-block px-3 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800';
+                badgeTrainees.className = 'inline-block px-2.5 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-100 text-emerald-800';
             } else if (traineeAttRate >= 60) {
-                txtTraineesPct.className = 'text-2xl font-black text-amber-600 tracking-tight';
+                txtTraineesPct.className = 'text-xl font-black text-amber-600 tracking-tight';
                 badgeTrainees.textContent = 'يحتاج متابعة';
-                badgeTrainees.className = 'inline-block px-3 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800';
+                badgeTrainees.className = 'inline-block px-2.5 py-0.5 rounded-full text-[9.5px] font-bold bg-amber-100 text-amber-800';
             } else {
-                txtTraineesPct.className = 'text-2xl font-black text-rose-600 tracking-tight';
+                txtTraineesPct.className = 'text-xl font-black text-rose-600 tracking-tight';
                 badgeTrainees.textContent = 'منخفض جداً';
-                badgeTrainees.className = 'inline-block px-3 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800';
+                badgeTrainees.className = 'inline-block px-2.5 py-0.5 rounded-full text-[9.5px] font-bold bg-rose-100 text-rose-800';
             }
 
-            // بطاقات الشعب
             document.getElementById('txt-sections-pct').textContent = sectionExecRate.toFixed(1) + '%';
             document.getElementById('txt-sections-summary').textContent = `${executedSections} من ${totalSections} شعبة`;
             document.getElementById('txt-sections-total').textContent = `عدد الشعب الإجمالية: ${totalSections}`;
@@ -924,17 +852,14 @@
             document.getElementById('eval-sections-executed').value = executedSections;
             document.getElementById('eval-sections-total').value = totalSections;
 
-            // رسم الدونات
             drawAllCharts(trainerAttendanceRate, traineeAttRate, sectionExecRate);
 
-            // بناء الجداول
             renderTrainersTable(trainerRecordsMap);
-            renderSectionsTable(filteredSO09, traineeAttRate);
+            renderSectionsTable(filteredSO09);
             renderST06Table(filteredST06);
         }
 
         function drawAllCharts(trainerRate, traineeRate, sectionRate) {
-            // دونات المدربين
             if (chartTrainers) chartTrainers.destroy();
             const ctxTrainers = document.getElementById('gauge-trainers').getContext('2d');
             chartTrainers = new Chart(ctxTrainers, {
@@ -952,7 +877,6 @@
                 options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
             });
 
-            // دونات المتدربين
             let traineeColor = traineeRate >= 80 ? '#047857' : (traineeRate >= 60 ? '#d97706' : '#e11d48');
             if (chartTrainees) chartTrainees.destroy();
             const ctxTrainees = document.getElementById('donut-trainees').getContext('2d');
@@ -969,7 +893,6 @@
                 options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
             });
 
-            // دونات الشعب
             if (chartSections) chartSections.destroy();
             const ctxSections = document.getElementById('gauge-sections').getContext('2d');
             chartSections = new Chart(ctxSections, {
@@ -1004,7 +927,8 @@
             });
         }
 
-        function renderSectionsTable(sections, overallRate) {
+        // دالة عرض الشعب مع ضبط الأثر بناءً على نسبة رصد رايات فقط
+        function renderSectionsTable(sections) {
             const tbody = document.getElementById('table-sections-body');
             tbody.innerHTML = '';
 
@@ -1015,15 +939,12 @@
                 const teacherRate = parseFloat(row['نسبة التحضير'] || 0) || 0;
                 const sectionAttRate = prep > 0 ? ((present / prep) * 100) : 0;
 
+                // التعديل: الأثر معتمد على نسبة رصد رايات فقط
                 let impactBadge = '';
-                if (teacherRate < 100) {
-                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-rose-100 text-rose-800">رصد متأخر</span>`;
-                } else if (sectionAttRate === 100) {
-                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-100 text-emerald-800">رفع النسبة (100%)</span>`;
-                } else if (sectionAttRate < 50) {
-                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-rose-100 text-rose-800">خفض النسبة (غياب مرتفع)</span>`;
+                if (teacherRate >= 100) {
+                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-100 text-emerald-800"><i class="fa-solid fa-circle-check"></i> مكتمل الرصد (100%)</span>`;
                 } else {
-                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-slate-100 text-slate-600">مستقر</span>`;
+                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-rose-100 text-rose-800"><i class="fa-solid fa-triangle-exclamation"></i> غير مكتمل (${teacherRate.toFixed(0)}%)</span>`;
                 }
 
                 const tr = document.createElement('tr');
@@ -1062,7 +983,6 @@
             });
         }
 
-        // عمليات نافذة الاعتماد
         function openApprovalModal() {
             if (so09Data.length === 0 && st06Data.length === 0) {
                 alert('الرجاء رفع ملفات رايات أولاً للتمكن من الاعتماد.');
@@ -1121,7 +1041,6 @@
             }
         }
 
-        // آليات البحث
         document.getElementById('search-trainers').addEventListener('input', function(e) {
             const q = e.target.value.toLowerCase();
             document.querySelectorAll('#table-trainers-body tr').forEach(r => {
