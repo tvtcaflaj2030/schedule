@@ -17,11 +17,10 @@
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
         body { font-family: 'Cairo', sans-serif; }
 
-        /* ورقة التقرير الرسمية A4 */
         #printable-report-sheet {
             background-color: #ffffff;
             width: 100%;
-            max-width: 1000px;
+            max-width: 950px;
             margin: 0 auto;
         }
 
@@ -42,7 +41,7 @@
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen">
 
-    <!-- شريط الرأس في الموقع -->
+    <!-- شريط الرأس -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -74,7 +73,7 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-        <!-- منطقة الرفع -->
+        <!-- منطقة رفع الملفات -->
         <section class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm no-print space-y-4">
             <div class="flex items-center justify-between">
                 <div>
@@ -82,7 +81,7 @@
                         <i class="fa-solid fa-cloud-arrow-up text-emerald-700"></i>
                         رفع تقارير رايات لبدء التحليل
                     </h2>
-                    <p class="text-xs text-slate-500 mt-1">المعالجة محلية 100% داخل المتصفح. ارفع ملفات القسم وسيتم إدراج جميع الشعب مباشرة للقسم.</p>
+                    <p class="text-xs text-slate-500 mt-1">تتم المعالجة محلياً 100% داخل المتصفح لكل قسم على حدة.</p>
                 </div>
                 <button onclick="clearAllData()" class="text-xs font-bold text-slate-400 hover:text-rose-600 flex items-center gap-1">
                     <i class="fa-solid fa-rotate-right"></i> تصفير الواجهة
@@ -120,10 +119,10 @@
                 <i class="fa-solid fa-chart-pie"></i>
             </div>
             <h3 class="text-base font-bold text-slate-700">بانتظار رفع ملفات رايات</h3>
-            <p class="text-xs text-slate-400 max-w-md mx-auto">ارفع ملفي SO09 و ST06 لاستخراج لوحة المؤشرات والرسوم البيانية وتصدير تقرير PDF رسمي فوراً.</p>
+            <p class="text-xs text-slate-400 max-w-md mx-auto">ارفع ملفي SO09 و ST06 لاستخراج لوحة المؤشرات، الرسوم البيانية، ونموذج التقييم الرسمي.</p>
         </div>
 
-        <!-- صندوق التحكم التفاعلي بالمدربين (موضوع خارج ورقة التقرير لكي لا يظهر في الـ PDF) -->
+        <!-- صندوق التحكم التفاعلي بالمدربين (خارج ورقة التقرير) -->
         <div id="trainers-control-box" class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3 no-print hidden">
             <h3 class="font-extrabold text-slate-800 text-xs flex items-center gap-2">
                 <i class="fa-solid fa-sliders text-emerald-700"></i>
@@ -147,11 +146,11 @@
         </div>
 
         <!-- ======================================================== -->
-        <!-- ورقة التقرير الرسمية المخصصة للتصدير بدقة A4 (الـ Canvas) -->
+        <!-- ورقة التقرير الرسمية المخصصة للتصدير بدقة A4             -->
         <!-- ======================================================== -->
         <div id="analytics-section" class="hidden">
 
-            <div id="printable-report-sheet" class="p-8 space-y-6">
+            <div id="printable-report-sheet" class="p-8 space-y-6 rounded-2xl border border-slate-200 shadow-sm">
 
                 <!-- ترويسة التقرير الرسمية -->
                 <div id="print-report-header" class="border-b-2 border-slate-800 pb-4">
@@ -177,7 +176,6 @@
 
                 <!-- 1. المؤشرات الدائرية الكبرى الثلاثة -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <!-- حضور المدربين -->
                     <div class="bg-slate-50/70 rounded-2xl p-4 border border-slate-200 flex flex-col items-center justify-between text-center min-h-[220px]">
                         <span class="text-xs font-bold text-slate-600">نسبة حضور المدربين</span>
                         <div class="w-40 h-20 relative flex items-end justify-center my-1">
@@ -193,7 +191,6 @@
                         </div>
                     </div>
 
-                    <!-- حضور المتدربين -->
                     <div class="bg-slate-50/70 rounded-2xl p-4 border border-slate-200 flex flex-col items-center justify-between text-center min-h-[220px]">
                         <span class="text-xs font-bold text-slate-600">نسبة حضور المتدربين</span>
                         <div class="w-28 h-28 relative flex items-center justify-center my-1">
@@ -209,7 +206,6 @@
                         </div>
                     </div>
 
-                    <!-- تنفيذ الشعب (مع ضبط الشارة عند 50% أو أقل لتكتب متأخر) -->
                     <div class="bg-slate-50/70 rounded-2xl p-4 border border-slate-200 flex flex-col items-center justify-between text-center min-h-[220px]">
                         <span class="text-xs font-bold text-slate-600">نسبة تنفيذ الشعب</span>
                         <div class="w-40 h-20 relative flex items-end justify-center my-1">
@@ -280,69 +276,52 @@
                     </div>
                 </div>
 
-                <!-- 3. نموذج تفاصيل التقييم (تم تحويله إلى نصوص ظاهرة لتقرأها الطباعة 100%) -->
+                <!-- 3. نموذج تفاصيل التقييم (محاذاة منسقة وحذف خانة التواقيع السفلية) -->
                 <fieldset class="bg-white rounded-2xl p-5 border border-slate-300 shadow-sm space-y-3">
                     <legend class="text-xs font-bold text-slate-700 px-2 flex items-center gap-2">
                         <i class="fa-solid fa-file-signature text-emerald-700"></i> تفاصيل التقييم التنفيذي :
                     </legend>
 
-                    <div class="space-y-2 w-full text-xs divide-y divide-slate-100">
-                        <div class="flex items-center justify-between gap-4 pt-1.5">
-                            <span class="font-bold text-slate-600">القسم التدريبي :</span>
-                            <span id="eval-dept" class="font-extrabold text-slate-900 bg-slate-50 px-3 py-1 rounded-md border border-slate-200 min-w-[200px] text-left">-</span>
+                    <!-- محاذاة منسقة: المسمى بجانب القيمة مباشرة وبدون فجوات عريضة -->
+                    <div class="space-y-2.5 max-w-2xl text-xs">
+                        <div class="flex items-center gap-4">
+                            <span class="w-64 font-bold text-slate-700 shrink-0">القسم التدريبي :</span>
+                            <span id="eval-dept" class="font-extrabold text-slate-900 bg-slate-50 px-4 py-1.5 rounded-xl border border-slate-200 min-w-[190px] text-center">-</span>
                         </div>
 
-                        <div class="flex items-center justify-between gap-4 pt-1.5">
-                            <span class="font-bold text-slate-600">إجمالي عدد المدربين / المدربات في المنشأة :</span>
-                            <span id="eval-trainers-total" class="font-extrabold text-slate-900 bg-slate-50 px-3 py-1 rounded-md border border-slate-200 min-w-[200px] text-left">4</span>
+                        <div class="flex items-center gap-4">
+                            <span class="w-64 font-bold text-slate-700 shrink-0">إجمالي عدد المدربين / المدربات في المنشأة :</span>
+                            <span id="eval-trainers-total" class="font-extrabold text-slate-900 bg-slate-50 px-4 py-1.5 rounded-xl border border-slate-200 min-w-[190px] text-center">4</span>
                         </div>
 
-                        <div class="flex items-center justify-between gap-4 pt-1.5">
-                            <span class="font-bold text-slate-600">عدد المدربين / المدربات الحاضرين للأسبوع :</span>
-                            <span id="eval-trainers-present" class="font-extrabold text-slate-900 bg-slate-50 px-3 py-1 rounded-md border border-slate-200 min-w-[200px] text-left">4.00</span>
+                        <div class="flex items-center gap-4">
+                            <span class="w-64 font-bold text-slate-700 shrink-0">عدد المدربين / المدربات الحاضرين للأسبوع :</span>
+                            <span id="eval-trainers-present" class="font-extrabold text-slate-900 bg-slate-50 px-4 py-1.5 rounded-xl border border-slate-200 min-w-[190px] text-center">4.00</span>
                         </div>
 
-                        <div class="flex items-center justify-between gap-4 pt-1.5">
-                            <span class="font-bold text-slate-600">أسباب الغيابات :</span>
-                            <span id="eval-absence-reasons" class="font-extrabold text-slate-900 bg-slate-50 px-3 py-1 rounded-md border border-slate-200 min-w-[200px] text-left">لا يوجد</span>
+                        <div class="flex items-center gap-4">
+                            <span class="w-64 font-bold text-slate-700 shrink-0">أسباب الغيابات :</span>
+                            <span id="eval-absence-reasons" class="font-extrabold text-slate-900 bg-slate-50 px-4 py-1.5 rounded-xl border border-slate-200 min-w-[190px] text-center">لا يوجد</span>
                         </div>
 
-                        <div class="flex items-center justify-between gap-4 pt-1.5">
-                            <span class="font-bold text-slate-600">إجمالي عدد المتدربين / المتدربات في المنشأة :</span>
-                            <span id="eval-trainees-total" class="font-extrabold text-slate-900 bg-slate-50 px-3 py-1 rounded-md border border-slate-200 min-w-[200px] text-left">59</span>
+                        <div class="flex items-center gap-4">
+                            <span class="w-64 font-bold text-slate-700 shrink-0">إجمالي عدد المتدربين / المتدربات في المنشأة :</span>
+                            <span id="eval-trainees-total" class="font-extrabold text-slate-900 bg-slate-50 px-4 py-1.5 rounded-xl border border-slate-200 min-w-[190px] text-center">59</span>
                         </div>
 
-                        <div class="flex items-center justify-between gap-4 pt-1.5">
-                            <span class="font-bold text-slate-600">عدد المتدربين / المتدربات الحاضرين للأسبوع :</span>
-                            <span id="eval-trainees-present" class="font-extrabold text-slate-900 bg-slate-50 px-3 py-1 rounded-md border border-slate-200 min-w-[200px] text-left">39</span>
+                        <div class="flex items-center gap-4">
+                            <span class="w-64 font-bold text-slate-700 shrink-0">عدد المتدربين / المتدربات الحاضرين للأسبوع :</span>
+                            <span id="eval-trainees-present" class="font-extrabold text-slate-900 bg-slate-50 px-4 py-1.5 rounded-xl border border-slate-200 min-w-[190px] text-center">39</span>
                         </div>
 
-                        <div class="flex items-center justify-between gap-4 pt-1.5">
-                            <span class="font-bold text-slate-600">عدد الشعب المنفذة :</span>
-                            <span id="eval-sections-executed" class="font-extrabold text-slate-900 bg-slate-50 px-3 py-1 rounded-md border border-slate-200 min-w-[200px] text-left">11</span>
+                        <div class="flex items-center gap-4">
+                            <span class="w-64 font-bold text-slate-700 shrink-0">عدد الشعب المنفذة :</span>
+                            <span id="eval-sections-executed" class="font-extrabold text-slate-900 bg-slate-50 px-4 py-1.5 rounded-xl border border-slate-200 min-w-[190px] text-center">11</span>
                         </div>
 
-                        <div class="flex items-center justify-between gap-4 pt-1.5">
-                            <span class="font-bold text-slate-600">عدد الشعب الاجمالي :</span>
-                            <span id="eval-sections-total" class="font-extrabold text-slate-900 bg-slate-50 px-3 py-1 rounded-md border border-slate-200 min-w-[200px] text-left">11</span>
-                        </div>
-                    </div>
-
-                    <!-- مساحة التواقيع والاعتماد الرسمي -->
-                    <div class="pt-6 mt-4 border-t border-slate-300">
-                        <div class="flex justify-between items-center text-xs font-bold text-slate-800 px-4">
-                            <div class="text-center space-y-3">
-                                <p>مُعد التقرير / مشرف التدريب</p>
-                                <p class="text-slate-400">....................................</p>
-                            </div>
-                            <div class="text-center space-y-3">
-                                <p>رئيس القسم التدريبي</p>
-                                <p class="text-slate-400">....................................</p>
-                            </div>
-                            <div class="text-center space-y-3">
-                                <p>وكيل شؤون المتدربين / المدير</p>
-                                <p class="text-slate-400">....................................</p>
-                            </div>
+                        <div class="flex items-center gap-4">
+                            <span class="w-64 font-bold text-slate-700 shrink-0">عدد الشعب الاجمالي :</span>
+                            <span id="eval-sections-total" class="font-extrabold text-slate-900 bg-slate-50 px-4 py-1.5 rounded-xl border border-slate-200 min-w-[190px] text-center">11</span>
                         </div>
                     </div>
                 </fieldset>
@@ -350,12 +329,12 @@
                 <!-- 4. الجداول التفصيلية -->
                 <div class="space-y-6 pt-2">
 
-                    <!-- جدول بيانات المدربين -->
-                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <!-- جدول بيانات المدربين المطور: تقريب الأعمدة + إضافة عمود متوسط نسبة رصد التحضير -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden max-w-3xl">
                         <div class="p-3.5 border-b border-slate-100 flex items-center justify-between gap-4 bg-slate-50/70">
                             <h3 class="font-extrabold text-slate-800 text-xs flex items-center gap-2">
                                 <i class="fa-solid fa-chalkboard-user text-emerald-700"></i>
-                                بيانات المدربين وعدد السجلات المسندة
+                                بيانات المدربين ومتوسط نسب التحضير
                             </h3>
                             <div class="w-56 no-print">
                                 <input type="text" id="search-trainers" placeholder="بحث باسم المدرب..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-1 text-xs focus:outline-none focus:border-emerald-600">
@@ -366,7 +345,8 @@
                                 <thead class="bg-emerald-50/60 text-emerald-950 font-bold border-b border-slate-200">
                                     <tr>
                                         <th class="p-2.5">اسم المدرب</th>
-                                        <th class="p-2.5 text-center w-36">عدد السجلات والشعب</th>
+                                        <th class="p-2.5 text-center w-36">الشعب المسندة</th>
+                                        <th class="p-2.5 text-center w-48">متوسط نسبة رصد التحضير</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-trainers-body" class="divide-y divide-slate-100 font-medium">
@@ -375,7 +355,7 @@
                         </div>
                     </div>
 
-                    <!-- جدول تفاصيل الشعب (الأثر معتمد على نسبة رصد رايات) -->
+                    <!-- جدول تفاصيل الشعب التدريبية -->
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                         <div class="p-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4 bg-slate-50/70">
                             <div>
@@ -536,14 +516,11 @@
             recalculateDashboard();
         }
 
-        // ========================================================
-        // دالة تصدير الـ PDF المحكمة (Pixel-Perfect A4)
-        // ========================================================
         async function exportToPdf() {
             const btn = document.getElementById('btn-export-pdf');
             const originalText = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<span>⏳ جاري تصدير PDF عالي الدقة...</span>';
+            btn.innerHTML = '<span>⏳ جاري تصدير PDF...</span>';
 
             const element = document.getElementById('printable-report-sheet');
             
@@ -685,12 +662,12 @@
             let totalPrograms = progs.size || 2;
             let totalDepartments = depts.size || 1;
 
-            // 2. حسابات SO09
+            // 2. حسابات SO09 وتجميع بيانات المدربين (الشعب والمتوسط)
             let totalSections = so09Data.length;
             let totalPrep = 0;
             let regPrep = 0;
             let executedSections = 0;
-            let trainerRecordsMap = {};
+            let trainerStats = {};
 
             if (so09Data.length > 0) {
                 so09Data.forEach(row => {
@@ -699,7 +676,11 @@
                     let rate = parseFloat(row['نسبة التحضير'] || 0) || 0;
                     let trainer = (row['اسم المدرب'] || 'غير محدد').trim();
 
-                    trainerRecordsMap[trainer] = (trainerRecordsMap[trainer] || 0) + 1;
+                    if (!trainerStats[trainer]) {
+                        trainerStats[trainer] = { count: 0, totalRate: 0 };
+                    }
+                    trainerStats[trainer].count += 1;
+                    trainerStats[trainer].totalRate += rate;
 
                     totalPrep += p;
                     regPrep += r;
@@ -707,7 +688,7 @@
                 });
             }
 
-            let distinctTrainersCount = Object.keys(trainerRecordsMap).length;
+            let distinctTrainersCount = Object.keys(trainerStats).length;
 
             let inputTrainersField = document.getElementById('input-trainers-count');
             if (distinctTrainersCount > 0 && (document.activeElement !== inputTrainersField || inputTrainersField.value === '0')) {
@@ -722,7 +703,6 @@
             let trainerAttendanceRate = totalOpportunities > 0 ? ((attendedOpportunities / totalOpportunities) * 100) : 0;
             let attendedTrainersPerWeek = (attendedOpportunities / 5).toFixed(2);
 
-            // تحديث نص معادلة المدربين
             if (totalOpportunities > 0) {
                 document.getElementById('trainer-formula-calc').textContent = 
                     `${trainersCount} مدرباً × 5 أيام = ${totalOpportunities} فرصة - ${absentDays} غياب = ${attendedOpportunities} حضور - النسبة ${attendedOpportunities} ÷ ${totalOpportunities} × 100 = ${trainerAttendanceRate.toFixed(1)}%`;
@@ -737,7 +717,6 @@
             document.getElementById('card-trainers-opp').textContent = `${attendedOpportunities} / ${totalOpportunities}`;
             document.getElementById('card-trainers-opp-pct').textContent = `النسبة ${trainerAttendanceRate.toFixed(1)}%`;
 
-            // تحديث شارة حالة المدربين برمجياً
             const badgeTrainers = document.getElementById('badge-trainers-status');
             if (trainerAttendanceRate >= 90) {
                 badgeTrainers.textContent = 'ممتاز';
@@ -783,7 +762,7 @@
                 badgeTrainees.className = 'inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800';
             }
 
-            // 4. تحديث مؤشرات تنفيذ الشعب وشارتها بدقة
+            // 4. مؤشرات تنفيذ الشعب
             document.getElementById('txt-sections-pct').textContent = sectionExecRate.toFixed(1) + '%';
             document.getElementById('txt-sections-summary').textContent = `${executedSections} من ${totalSections} شعبة`;
             document.getElementById('txt-sections-total').textContent = `عدد الشعب الإجمالية: ${totalSections}`;
@@ -799,7 +778,7 @@
                 badgeSections.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 mt-1';
             }
 
-            // 5. تعبئة نصوص نموذج التقييم (التي كانت تظهر فارغة في الـ PDF)
+            // 5. تعبئة نصوص التقييم التنفيذي
             document.getElementById('eval-trainers-total').textContent = trainersCount;
             document.getElementById('eval-trainers-present').textContent = attendedTrainersPerWeek;
             document.getElementById('eval-trainees-total').textContent = totalTraineesST06;
@@ -809,7 +788,8 @@
 
             drawAllCharts(trainerAttendanceRate, traineeAttRate, sectionExecRate);
 
-            renderTrainersTable(trainerRecordsMap);
+            // عرض الجداول (المدربين + الشعب + المتدربين)
+            renderTrainersTable(trainerStats);
             renderSectionsTable(so09Data);
             renderST06Table(st06Data);
         }
@@ -868,17 +848,36 @@
             });
         }
 
-        function renderTrainersTable(trainersMap) {
+        // جدول بيانات المدربين: تقريب الأعمدة + حساب متوسط نسبة رصد التحضير بالألوان التفاعلية
+        function renderTrainersTable(trainersStats) {
             const tbody = document.getElementById('table-trainers-body');
             tbody.innerHTML = '';
             
-            const sortedTrainers = Object.keys(trainersMap).sort((a, b) => trainersMap[b] - trainersMap[a]);
+            const sortedTrainers = Object.keys(trainersStats).sort((a, b) => trainersStats[b].count - trainersStats[a].count);
             sortedTrainers.forEach(trainer => {
+                const data = trainersStats[trainer];
+                const avgRate = data.count > 0 ? (data.totalRate / data.count) : 0;
+
+                // ألوان تفاعلية بناءً على نسبة رصد التحضير
+                let colorBadge = '';
+                if (avgRate >= 100) {
+                    colorBadge = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+                } else if (avgRate >= 80) {
+                    colorBadge = 'bg-amber-100 text-amber-800 border border-amber-200';
+                } else {
+                    colorBadge = 'bg-rose-100 text-rose-800 border border-rose-200';
+                }
+
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-slate-50 transition-colors';
                 tr.innerHTML = `
                     <td class="p-2.5 text-slate-800 font-bold">${trainer}</td>
-                    <td class="p-2.5 text-center text-slate-700 font-extrabold bg-slate-50/50">${trainersMap[trainer]}</td>
+                    <td class="p-2.5 text-center text-slate-700 font-extrabold bg-slate-50/50">${data.count} شعبة</td>
+                    <td class="p-2.5 text-center">
+                        <span class="inline-block px-3 py-1 rounded-lg text-xs font-black ${colorBadge}">
+                            ${avgRate.toFixed(1)}%
+                        </span>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -897,9 +896,9 @@
 
                 let impactBadge = '';
                 if (teacherRate >= 100) {
-                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-100 text-emerald-800"><i class="fa-solid fa-circle-check"></i> مكتمل الرصد (100%)</span>`;
+                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800"><i class="fa-solid fa-circle-check"></i> مكتمل الرصد (100%)</span>`;
                 } else {
-                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-rose-100 text-rose-800"><i class="fa-solid fa-triangle-exclamation"></i> متسبب في نقص الرصد (${teacherRate.toFixed(0)}%)</span>`;
+                    impactBadge = `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-100 text-rose-800"><i class="fa-solid fa-triangle-exclamation"></i> متسبب في نقص الرصد (${teacherRate.toFixed(0)}%)</span>`;
                 }
 
                 const tr = document.createElement('tr');
