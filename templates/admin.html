@@ -3,192 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم | نظام إدارة الجداول والتدريب</title>
-    <!-- Tailwind CSS -->
+    <title>لوحة التحكم والإدارة — المعهد الصناعي الثانوي</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome للأيقونات -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
         body { font-family: 'Cairo', sans-serif; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+<body class="bg-slate-100/70 text-slate-800 min-h-screen">
 
-    <!-- شريط التنقل العلوي -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    {% if not logged_in %}
+    <!-- شاشة تسجيل الدخول المريحة للعين -->
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white max-w-md w-full p-8 rounded-3xl border border-slate-200 shadow-xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-emerald-50 text-emerald-800 rounded-2xl flex items-center justify-center text-2xl mx-auto shadow-inner">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h2 class="text-xl font-black text-slate-800">تسجيل الدخول للإدارة</h2>
+                <p class="text-xs text-slate-400">لوحة إدارة الجداول وسير العملية التدريبية</p>
+            </div>
+
+            {% if msg %}
+            <div class="p-3 rounded-xl text-xs font-bold text-center {% if msg_type == 'error' %}bg-rose-50 text-rose-700 border border-rose-200{% else %}bg-emerald-50 text-emerald-700 border border-emerald-200{% endif %}">
+                {{ msg }}
+            </div>
+            {% endif %}
+
+            <form method="POST" class="space-y-4">
+                <input type="hidden" name="action" value="login">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">كلمة المرور</label>
+                    <input type="password" name="password" required placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-emerald-600 font-bold">
+                </div>
+                <button type="submit" class="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl text-xs shadow-md transition-all">
+                    دخول إلى لوحة التحكم
+                </button>
+            </form>
+            <div class="text-center">
+                <a href="/" class="text-xs text-slate-400 hover:text-slate-600 font-bold">← العودة للرئيسية</a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+
+    <!-- الهيدر العلوي بعد تسجيل الدخول -->
+    <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                <div class="w-10 h-10 bg-slate-800 text-white rounded-xl flex items-center justify-center text-lg shadow-sm">
                     <i class="fa-solid fa-gauge-high"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-base sm:text-lg text-slate-800 leading-tight">لوحة تحكم الإدارة</h1>
-                    <p class="text-xs text-slate-400">إدارة الجداول وسير العملية التدريبية</p>
+                    <h1 class="font-black text-sm sm:text-base text-slate-800">لوحة تحكم الإدارة</h1>
+                    <p class="text-[11px] text-slate-400">إدارة الجداول وسير العملية التدريبية</p>
                 </div>
             </div>
-            
-            <div class="flex items-center gap-3">
-                <!-- زر التوجه لصفحة متابعة سير العملية التدريبية الجديدة -->
-                <a href="/admin/attendance" class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-sm hover:shadow transition-all duration-200">
-                    <i class="fa-solid fa-chart-pie"></i>
-                    <span>متابعة سير العملية التدريبية</span>
+
+            <!-- الزر 1 المعدل: زيارة بوابة المتدربين + تسجيل الخروج -->
+            <div class="flex items-center gap-2.5">
+                <a href="/" target="_blank" class="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all" title="زيارة بوابة المتدربين الرئيسية">
+                    <i class="fa-solid fa-globe"></i>
+                    <span>زيارة بوابة المتدربين</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-emerald-200"></i>
                 </a>
 
-                <a href="/" target="_blank" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition-colors" title="عرض الواجهة الرئيسية">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                <a href="/admin/logout" class="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 text-xs font-bold transition-all" title="تسجيل الخروج">
+                    <i class="fa-solid fa-right-from-bracket text-sm"></i>
                 </a>
             </div>
         </div>
     </header>
 
-    <!-- المحتوى الرئيسي -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-        <!-- بنر التنبيه السريع والميزة الجديدة -->
-        <div class="bg-gradient-to-l from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div class="space-y-1">
-                <span class="inline-block px-2.5 py-0.5 rounded-full bg-white/20 text-xs font-semibold tracking-wide">جديد النظام</span>
-                <h2 class="text-xl font-bold">منظومة متابعة سير العملية التدريبية (رايات)</h2>
-                <p class="text-emerald-100 text-sm max-w-2xl">
-                    يمكنك الآن قراءة وتحليل تقارير رايات (SO09 و ST06) بضغطة زر، واستخراج نسب الحضور والغياب ورسوم الدونات البيانية محلياً بأعلى درجات الأمان والخصوصية.
-                </p>
-            </div>
-            <a href="/admin/attendance" class="px-5 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 font-bold text-sm rounded-xl shadow transition-colors whitespace-nowrap">
-                الدخول للتحليل فوراً &larr;
-            </a>
+        {% if msg %}
+        <div class="p-3.5 rounded-2xl text-xs font-bold text-center {% if msg_type == 'error' %}bg-rose-50 text-rose-700 border border-rose-200{% else %}bg-emerald-50 text-emerald-800 border border-emerald-200{% endif %} shadow-sm">
+            {{ msg }}
         </div>
+        {% endif %}
 
-        <!-- بطاقات العمليات والأدوات الإدارية -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            
-            <!-- أداة 1: متابعة التحضير والغياب (الميزة الجديدة) -->
-            <div class="bg-white rounded-2xl p-6 border-2 border-emerald-500/30 hover:border-emerald-500 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
-                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-clipboard-check"></i>
+        <!-- البانر الترحيبي المنقح (ألوان كحلية/زمردية مريحة مع إزالة الزر رقم 2) -->
+        <section class="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white rounded-3xl p-7 shadow-lg border border-slate-700/40">
+            <div class="max-w-2xl space-y-2 relative z-10">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold border border-emerald-400/20 backdrop-blur-sm">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    نظام تقارير رايات المتكامل
                 </div>
-                <h3 class="text-base font-bold text-slate-800 mb-1">متابعة سير العملية التدريبية</h3>
-                <p class="text-xs text-slate-500 mb-4 leading-relaxed">
-                    تحليل تقارير رايات الأسبوعية، كشف الشُّعب المتعثرة في الرصد، وتوزيع نسب الحضور والغياب.
+                <h2 class="text-xl font-black text-white">منظومة متابعة سير العملية التدريبية (رايات)</h2>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    يمكنك الآن قراءة وتحليل تقارير رايات الأسبوعية (SO09 و ST06) بضغطة زر، واستخراج مؤشرات حضور المتدربين والمدربين، وتصدير التقارير الرسمية المعتمدة محلياً بالكامل وبأعلى درجات الخصوصية.
                 </p>
-                <a href="/admin/attendance" class="text-xs font-bold text-emerald-600 group-hover:text-emerald-700 flex items-center gap-1.5">
-                    فتح شاشة التحليل <i class="fa-solid fa-chevron-left text-[10px]"></i>
-                </a>
             </div>
+            <!-- زخرفة خلفية هادئة -->
+            <div class="absolute -left-10 -bottom-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        </section>
 
-            <!-- أداة 2: رفع وتحديث جداول المتدربين (PDF) -->
-            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
-                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-file-pdf"></i>
-                </div>
-                <h3 class="text-base font-bold text-slate-800 mb-1">رفع وتحديث الجداول</h3>
-                <p class="text-xs text-slate-500 mb-4 leading-relaxed">
-                    رفع ملفات جداول المتدربين الجديدة بصيغة PDF وتحديث قاعدة البيانات للبحث بالرقم التدريبي.
-                </p>
-                <button onclick="document.getElementById('upload-modal').classList.remove('hidden')" class="text-xs font-bold text-blue-600 group-hover:text-blue-700 flex items-center gap-1.5">
-                    رفع ملف جديد <i class="fa-solid fa-chevron-left text-[10px]"></i>
-                </button>
-            </div>
+        <!-- بطاقات الخدمات الثلاث الأساسية -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-            <!-- أداة 3: إدارة الشعب والمتدربين -->
-            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
-                <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
-                    <i class="fa-solid fa-users-gear"></i>
-                </div>
-                <h3 class="text-base font-bold text-slate-800 mb-1">سجلات المتدربين والجداول</h3>
-                <p class="text-xs text-slate-500 mb-4 leading-relaxed">
-                    استعراض قائمة الأرقام التدريبية المسجلة وتدقيق مطابقة الملفات والجداول المتوفرة.
-                </p>
-                <a href="#table-records" class="text-xs font-bold text-purple-600 group-hover:text-purple-700 flex items-center gap-1.5">
-                    عرض السجلات <i class="fa-solid fa-chevron-left text-[10px]"></i>
-                </a>
-            </div>
-
-        </div>
-
-        <!-- منطقة البحث السريع ومراجعة الملفات المحفوظة -->
-        <div id="table-records" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
-                <div>
-                    <h3 class="font-bold text-slate-800 text-base">ملفات وسجلات النظام</h3>
-                    <p class="text-xs text-slate-400">إدارة الملفات المخزنة وحالتها التشغيلية</p>
-                </div>
-                <div class="w-full sm:w-72">
-                    <div class="relative">
-                        <input type="text" id="filter-input" placeholder="بحث سريع في السجلات..." class="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-emerald-500 bg-slate-50">
-                        <i class="fa-solid fa-magnifying-glass absolute right-3 top-3 text-slate-400 text-xs"></i>
+            <!-- البطاقة 3: الدخول لشاشة متابعة سير العملية التدريبية -->
+            <a href="/admin/attendance" class="group bg-white p-6 rounded-3xl border-2 border-emerald-600/40 hover:border-emerald-700 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+                <div class="space-y-3">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-xl shadow-inner group-hover:scale-105 transition-transform">
+                        <i class="fa-solid fa-clipboard-check"></i>
                     </div>
+                    <h3 class="text-base font-black text-slate-800 group-hover:text-emerald-800 transition-colors">متابعة سير العملية التدريبية</h3>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        تحليل تقارير رايات الأسبوعية، فحص نسب الحضور والغياب، واكتشاف الشعب المتأخرة في الرصد وتصدير التقارير المعتمدة.
+                    </p>
                 </div>
+                <div class="flex items-center text-xs font-black text-emerald-800 group-hover:translate-x-[-4px] transition-transform">
+                    <span>فتح شاشة التحليل</span>
+                    <i class="fa-solid fa-chevron-left text-[10px] mr-1.5"></i>
+                </div>
+            </a>
+
+            <!-- بطاقة رفع وتحديث الجداول PDF -->
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
+                <div class="space-y-3">
+                    <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </div>
+                    <h3 class="text-base font-black text-slate-800">رفع وتحديث الجداول</h3>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        تحديث ملف PDF المجمع الخاص بجداول المتدربين لتمكين الاستعلام برقم المتدرب التدريبي.
+                    </p>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" class="space-y-2 pt-2 border-t border-slate-100">
+                    <input type="hidden" name="action" value="upload_schedule">
+                    <label class="block text-[11px] font-bold text-slate-500">اختر ملف الجداول الجديد (PDF):</label>
+                    <input type="file" name="pdf_file" accept=".pdf" required class="block w-full text-xs text-slate-500 file:mr-0 file:ml-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
+                    <button type="submit" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-colors mt-2 shadow-sm">
+                        رفع وتحديث ملف الجداول
+                    </button>
+                </form>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-right text-xs">
-                    <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
-                        <tr>
-                            <th class="p-4">نوع الخدمة / الملف</th>
-                            <th class="p-4">الوصف</th>
-                            <th class="p-4">الحالة</th>
-                            <th class="p-4">الإجراء</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
-                        <tr class="hover:bg-slate-50/80 transition-colors">
-                            <td class="p-4 flex items-center gap-2 font-bold text-emerald-700">
-                                <i class="fa-solid fa-chart-simple"></i>
-                                تقارير رايات (SO09 / ST06)
-                            </td>
-                            <td class="p-4 text-slate-500">تحليل رصد الحضور الأسبوعي والشُّعب</td>
-                            <td class="p-4"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-bold">جاهز للتحليل</span></td>
-                            <td class="p-4">
-                                <a href="/admin/attendance" class="px-3 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg font-bold">بدء التحليل</a>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-slate-50/80 transition-colors">
-                            <td class="p-4 flex items-center gap-2 font-bold text-blue-700">
-                                <i class="fa-solid fa-file-pdf"></i>
-                                جداول المتدربين (Schedules)
-                            </td>
-                            <td class="p-4 text-slate-500">ملف جداول الشعب التدريبية للبحث بالرقم الأكاديمي</td>
-                            <td class="p-4"><span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold">مفعل</span></td>
-                            <td class="p-4">
-                                <button onclick="document.getElementById('upload-modal').classList.remove('hidden')" class="px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-bold">تحديث الملف</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <!-- بطاقة رفع تقرير الغياب PDF -->
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
+                <div class="space-y-3">
+                    <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-user-xmark"></i>
+                    </div>
+                    <h3 class="text-base font-black text-slate-800">رفع تقرير غياب المتدربين</h3>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        تحديث ملف PDF المخصص للغياب والحرمان للمتدربين للاستعلام الذاتي عبر البوابة.
+                    </p>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" class="space-y-2 pt-2 border-t border-slate-100">
+                    <input type="hidden" name="action" value="upload_attendance">
+                    <label class="block text-[11px] font-bold text-slate-500">اختر ملف الغياب (PDF):</label>
+                    <input type="file" name="pdf_file" accept=".pdf" required class="block w-full text-xs text-slate-500 file:mr-0 file:ml-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
+                    <button type="submit" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-colors mt-2 shadow-sm">
+                        رفع وتحديث تقرير الغياب
+                    </button>
+                </form>
             </div>
-        </div>
+
+        </section>
 
     </main>
-
-    <!-- نافذة منبثقة لرفع الملفات (Modal) -->
-    <div id="upload-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 class="font-bold text-slate-800 text-sm">رفع ملف الجداول الجديد</h3>
-                <button onclick="document.getElementById('upload-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
-                    <i class="fa-solid fa-xmark text-base"></i>
-                </button>
-            </div>
-            <form action="/upload" method="POST" enctype="multipart/form-data" class="space-y-4">
-                <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-blue-500 transition-colors">
-                    <input type="file" name="file" accept=".pdf" required class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
-                    <p class="text-[11px] text-slate-400 mt-2">اختر ملف الجداول التدريبية بصيغة PDF</p>
-                </div>
-                <div class="flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('upload-modal').classList.add('hidden')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl">إلغاء</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow">بدء الرفع</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- تذييل الصفحة -->
-    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
-        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-400 font-medium">
-            جميع الحقوق محفوظة &copy; 2026 — نظام متابعة العملية التدريبية
-        </div>
-    </footer>
+    {% endif %}
 
 </body>
 </html>
