@@ -7,7 +7,7 @@ from datetime import datetime
 import fitz  # PyMuPDF
 import pandas as pd
 from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for, session
-
+ 
 app = Flask(__name__)
 app.secret_key = "secret_admin_key_turki_aflaj"
 ADMIN_PASSWORD = "turki2026"
