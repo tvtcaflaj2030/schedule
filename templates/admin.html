@@ -14,7 +14,7 @@
 <body class="bg-slate-100/70 text-slate-800 min-h-screen">
 
     {% if not logged_in %}
-    <!-- شاشة تسجيل الدخول المريحة للعين -->
+    <!-- شاشة تسجيل الدخول -->
     <div class="min-h-screen flex items-center justify-center p-4">
         <div class="bg-white max-w-md w-full p-8 rounded-3xl border border-slate-200 shadow-xl space-y-6">
             <div class="text-center space-y-2">
@@ -61,7 +61,7 @@
                 </div>
             </div>
 
-            <!-- الزر 1 المعدل: زيارة بوابة المتدربين + تسجيل الخروج -->
+            <!-- الزر 1: زيارة بوابة المتدربين + تسجيل الخروج -->
             <div class="flex items-center gap-2.5">
                 <a href="/" target="_blank" class="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all" title="زيارة بوابة المتدربين الرئيسية">
                     <i class="fa-solid fa-globe"></i>
@@ -84,7 +84,7 @@
         </div>
         {% endif %}
 
-        <!-- البانر الترحيبي المنقح (ألوان كحلية/زمردية مريحة مع إزالة الزر رقم 2) -->
+        <!-- البانر الترحيبي (بدون الزر 2) -->
         <section class="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white rounded-3xl p-7 shadow-lg border border-slate-700/40">
             <div class="max-w-2xl space-y-2 relative z-10">
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold border border-emerald-400/20 backdrop-blur-sm">
@@ -96,14 +96,13 @@
                     يمكنك الآن قراءة وتحليل تقارير رايات الأسبوعية (SO09 و ST06) بضغطة زر، واستخراج مؤشرات حضور المتدربين والمدربين، وتصدير التقارير الرسمية المعتمدة محلياً بالكامل وبأعلى درجات الخصوصية.
                 </p>
             </div>
-            <!-- زخرفة خلفية هادئة -->
             <div class="absolute -left-10 -bottom-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
         </section>
 
         <!-- بطاقات الخدمات الثلاث الأساسية -->
         <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-            <!-- البطاقة 3: الدخول لشاشة متابعة سير العملية التدريبية -->
+            <!-- البطاقة 1: الدخول لشاشة متابعة سير العملية التدريبية -->
             <a href="/admin/attendance" class="group bg-white p-6 rounded-3xl border-2 border-emerald-600/40 hover:border-emerald-700 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
                 <div class="space-y-3">
                     <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-xl shadow-inner group-hover:scale-105 transition-transform">
@@ -120,7 +119,7 @@
                 </div>
             </a>
 
-            <!-- بطاقة رفع وتحديث الجداول PDF -->
+            <!-- البطاقة 2: رفع وتحديث الجداول PDF -->
             <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
                 <div class="space-y-3">
                     <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center text-xl shadow-inner">
@@ -142,26 +141,33 @@
                 </form>
             </div>
 
-            <!-- بطاقة رفع تقرير الغياب PDF -->
+            <!-- البطاقة 3: رفع ملف نسب الغياب (CSV/Excel) وزر الكشوفات المباشر -->
             <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
                 <div class="space-y-3">
-                    <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center text-xl shadow-inner">
-                        <i class="fa-solid fa-user-xmark"></i>
+                    <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-file-excel"></i>
                     </div>
-                    <h3 class="text-base font-black text-slate-800">رفع تقرير غياب المتدربين</h3>
+                    <h3 class="text-base font-black text-slate-800">بيانات نسب الغياب والحرمان</h3>
                     <p class="text-xs text-slate-500 leading-relaxed">
-                        تحديث ملف PDF المخصص للغياب والحرمان للمتدربين للاستعلام الذاتي عبر البوابة.
+                        رفع ملف رايات الشامل لنسب الغياب (CSV أو Excel) لتفعيل استعلام الطلاب ولوحة فرز الكشوفات.
                     </p>
                 </div>
 
                 <form method="POST" enctype="multipart/form-data" class="space-y-2 pt-2 border-t border-slate-100">
-                    <input type="hidden" name="action" value="upload_attendance">
-                    <label class="block text-[11px] font-bold text-slate-500">اختر ملف الغياب (PDF):</label>
-                    <input type="file" name="pdf_file" accept=".pdf" required class="block w-full text-xs text-slate-500 file:mr-0 file:ml-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
+                    <input type="hidden" name="action" value="upload_absence_file">
+                    <label class="block text-[11px] font-bold text-slate-500">اختر ملف رايات (CSV أو Excel):</label>
+                    <input type="file" name="absence_file" accept=".csv, .xlsx, .xls" required class="block w-full text-xs text-slate-500 file:mr-0 file:ml-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
                     <button type="submit" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-colors mt-2 shadow-sm">
-                        رفع وتحديث تقرير الغياب
+                        رفع وتحديث ملف الغياب
                     </button>
                 </form>
+
+                <div class="pt-1 border-t border-slate-100">
+                    <a href="/admin/absence_dashboard" class="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
+                        <i class="fa-solid fa-filter"></i>
+                        <span>فتح لوحة فرز الكشوفات وسحب الأسماء</span>
+                    </a>
+                </div>
             </div>
 
         </section>
