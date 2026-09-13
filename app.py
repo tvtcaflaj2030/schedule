@@ -5,6 +5,7 @@ import json
 import sqlite3
 from datetime import datetime
 import fitz  # PyMuPDF
+import pandas as pd
 from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for, session
 
 app = Flask(__name__)
@@ -13,10 +14,10 @@ ADMIN_PASSWORD = "turki2026"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEDULES_PDF = os.path.join(BASE_DIR, "schedules.pdf")
-ATTENDANCE_PDF = os.path.join(BASE_DIR, "attendance.pdf")
+ATTENDANCE_DATA_FILE = os.path.join(BASE_DIR, "absence_data.csv")
 DB_PATH = os.path.join(BASE_DIR, "attendance_archive.db")
 
-# --- تهيئة وتحديث قاعدة بيانات الأرشيف والتقارير المعتمدة ---
+# --- تهيئة قاعدة بيانات الأرشيف والتقارير المعتمدة ---
 def init_attendance_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -43,7 +44,7 @@ def init_attendance_db():
 
 init_attendance_db()
 
-# القائمة الثابتة بالخدمات للمتدربين
+# القائمة الثابتة للخدمات الطلابية
 SERVICES_LIST = [
     {
         "title": "الخدمات الذاتية للمتدربين (رايات)",
@@ -80,19 +81,16 @@ SERVICES_LIST = [
 def normalize_digits(text):
     arabic_digits = "٠١٢٣٤٥٦٧٨٩"
     english_digits = "0123456789"
-    return text.translate(str.maketrans(arabic_digits, english_digits))
+    return str(text).translate(str.maketrans(arabic_digits, english_digits))
 
 def find_student_pages(pdf_path, trainee_id):
     clean_id = normalize_digits(trainee_id).strip()
     if len(clean_id) < 9 or not clean_id.isdigit():
         return []
-
     id_pattern = re.compile(rf'(?<!\d){re.escape(clean_id)}(?!\d)|(?<!\d){re.escape(clean_id[::-1])}(?!\d)')
     matched_pages = []
-    
     if not os.path.exists(pdf_path):
         return []
-
     try:
         doc = fitz.open(pdf_path)
         for page_num in range(len(doc)):
@@ -102,6 +100,21 @@ def find_student_pages(pdf_path, trainee_id):
         return matched_pages
     except Exception:
         return []
+
+# دالة مساعدة لقراءة ملف الغياب سواء كان CSV أو Excel
+def load_absence_dataframe():
+    if not os.path.exists(ATTENDANCE_DATA_FILE):
+        return None
+    try:
+        if ATTENDANCE_DATA_FILE.endswith(('.xlsx', '.xls')):
+            return pd.read_excel(ATTENDANCE_DATA_FILE)
+        else:
+            try:
+                return pd.read_csv(ATTENDANCE_DATA_FILE, encoding='utf-8')
+            except UnicodeDecodeError:
+                return pd.read_csv(ATTENDANCE_DATA_FILE, encoding='windows-1256')
+    except Exception:
+        return None
 
 # --- مسارات الواجهة العامة ---
 
@@ -120,6 +133,85 @@ def attendance_page():
 @app.route("/services")
 def services():
     return render_template("services.html", services=SERVICES_LIST)
+
+# استعلام المتدرب عن الغياب والإنذارات والحرمان
+@app.route("/search_absence", methods=["POST"])
+def search_absence():
+    trainee_id = normalize_digits(request.form.get("trainee_id", "").strip())
+    if len(trainee_id) < 9 or not trainee_id.isdigit():
+        return jsonify({"success": False, "message": "يرجى إدخال الرقم التدريبي بشكل صحيح (9 أرقام)."})
+
+    df = load_absence_dataframe()
+    if df is None or df.empty:
+        return jsonify({"success": False, "message": "لم يتم رفع أو تحديث بيانات الغياب من قبل الإدارة بعد."})
+
+    # مطابقة رقم المتدرب
+    df['رقم_نظيف'] = df['رقم المتدرب'].astype(str).apply(lambda x: normalize_digits(x).strip())
+    matched = df[df['رقم_نظيف'] == trainee_id]
+
+    if matched.empty:
+        return jsonify({"success": False, "message": "لم يتم العثور على سجلات غياب مطابقة لهذا الرقم التدريبي."})
+
+    trainee_name = matched.iloc[0]['اسم المتدرب']
+    department = matched.iloc[0]['اسم القسم'] if 'اسم القسم' in matched.columns else ''
+    program = matched.iloc[0]['اسم البرنامج'] if 'اسم البرنامج' in matched.columns else ''
+
+    courses = []
+    max_rate = 0.0
+
+    for _, row in matched.iterrows():
+        course_name = row['اسم المقرر']
+        section_no = row['أرقام شعب المقرر'] if 'أرقام شعب المقرر' in row else ''
+        
+        # الاعتماد على إجمالي نسبة وساعات الغياب بعذر وبدون عذر
+        raw_rate = row.get('إجمالي نسبة الغياب بعذر وبدون عذر', 0)
+        raw_hours = row.get('إجمالي ساعات الغياب بعذر وبدون عذر', 0)
+        
+        try:
+            rate = float(raw_rate)
+        except (ValueError, TypeError):
+            rate = 0.0
+            
+        try:
+            hours = float(raw_hours)
+        except (ValueError, TypeError):
+            hours = 0.0
+
+        if rate > max_rate:
+            max_rate = rate
+
+        # تصنيف الحالة
+        if rate >= 20.0:
+            status_text = "محروم نظاماً"
+            status_color = "danger"
+        elif rate >= 15.0:
+            status_text = "إنذار ثانٍ (خطر حرمان)"
+            status_color = "warning-high"
+        elif rate >= 10.0:
+            status_text = "إنذار أول"
+            status_color = "warning-low"
+        else:
+            status_text = "مستمر (وضع آمن)"
+            status_color = "safe"
+
+        courses.append({
+            "course_name": course_name,
+            "section_no": str(section_no),
+            "absence_rate": round(rate, 2),
+            "absence_hours": round(hours, 1),
+            "status_text": status_text,
+            "status_color": status_color
+        })
+
+    return jsonify({
+        "success": True,
+        "trainee_name": trainee_name,
+        "trainee_id": trainee_id,
+        "department": department,
+        "program": program,
+        "max_rate": round(max_rate, 2),
+        "courses": courses
+    })
 
 @app.route("/search_schedule", methods=["POST"])
 def search_schedule():
@@ -196,12 +288,16 @@ def admin():
                 msg = "تم رفع وتحديث ملف الجداول بنجاح!"
                 msg_type = "success"
 
-        elif action == "upload_attendance":
+        elif action == "upload_absence_file":
             if not session.get("logged_in"): return redirect(url_for("admin"))
-            file = request.files.get("pdf_file")
-            if file and file.filename.endswith(".pdf"):
-                file.save(ATTENDANCE_PDF)
-                msg = "تم رفع وتحديث تقرير الغياب بنجاح!"
+            file = request.files.get("absence_file")
+            if file and (file.filename.endswith(".csv") or file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
+                ext = os.path.splitext(file.filename)[1]
+                save_path = os.path.join(BASE_DIR, f"absence_data{ext}")
+                file.save(save_path)
+                global ATTENDANCE_DATA_FILE
+                ATTENDANCE_DATA_FILE = save_path
+                msg = "تم رفع وتحديث ملف نسب الغياب بنجاح، والنظام جاهز لفرز الكشوفات!"
                 msg_type = "success"
 
     return render_template("admin.html", 
@@ -214,16 +310,114 @@ def admin_logout():
     session.pop("logged_in", None)
     return redirect(url_for("admin"))
 
-# --- مسارات نظام متابعة التدريب والأرشيف والاعتماد ---
+# شاشة الإدارة المخصصة لفرز وسحب كشوفات الغياب والحرمان
+@app.route("/admin/absence_dashboard")
+def absence_dashboard():
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
 
-# 1. شاشة متابعة سير العملية التدريبية الرئيسية
+    df = load_absence_dataframe()
+    if df is None or df.empty:
+        return render_template("admin_absence_dashboard.html", has_data=False, departments=[])
+
+    # استخراج قائمة الأقسام
+    departments = sorted([d for d in df['اسم القسم'].dropna().unique() if str(d).strip()])
+
+    return render_template("admin_absence_dashboard.html", has_data=True, departments=departments)
+
+# API جلب البيانات المفروزة لجدول الإدارة وتصديرها
+@app.route("/admin/api/absence_records")
+def api_absence_records():
+    if not session.get("logged_in"):
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
+
+    df = load_absence_dataframe()
+    if df is None or df.empty:
+        return jsonify({"success": False, "records": [], "stats": {}})
+
+    dept = request.args.get("department", "ALL")
+    status_filter = request.args.get("status", "ALL")
+
+    filtered = df.copy()
+
+    # تحويل نسب وساعات الغياب لأرقام
+    rate_col = 'إجمالي نسبة الغياب بعذر وبدون عذر'
+    hours_col = 'إجمالي ساعات الغياب بعذر وبدون عذر'
+
+    filtered['rate'] = pd.to_numeric(filtered[rate_col], errors='coerce').fillna(0.0)
+    filtered['hours'] = pd.to_numeric(filtered[hours_col], errors='coerce').fillna(0.0)
+
+    # فلترة القسم
+    if dept != "ALL":
+        filtered = filtered[filtered['اسم القسم'] == dept]
+
+    # حساب الإحصائيات قبل فلترة الحالة
+    total_records = len(filtered)
+    danger_count = len(filtered[filtered['rate'] >= 20.0])
+    warn2_count = len(filtered[(filtered['rate'] >= 15.0) & (filtered['rate'] < 20.0)])
+    warn1_count = len(filtered[(filtered['rate'] >= 10.0) & (filtered['rate'] < 15.0)])
+    safe_count = len(filtered[filtered['rate'] < 10.0])
+
+    # تطبيق فلترة الحالة
+    if status_filter == "danger":
+        filtered = filtered[filtered['rate'] >= 20.0]
+    elif status_filter == "warn2":
+        filtered = filtered[(filtered['rate'] >= 15.0) & (filtered['rate'] < 20.0)]
+    elif status_filter == "warn1":
+        filtered = filtered[(filtered['rate'] >= 10.0) & (filtered['rate'] < 15.0)]
+    elif status_filter == "safe":
+        filtered = filtered[filtered['rate'] < 10.0]
+
+    # ترتيب الأكثر غياباً أولاً
+    filtered = filtered.sort_values(by='rate', ascending=False)
+
+    records = []
+    for _, row in filtered.iterrows():
+        rate = float(row['rate'])
+        if rate >= 20.0:
+            st_text = "محروم (20%+)"
+            st_badge = "danger"
+        elif rate >= 15.0:
+            st_text = "إنذار ثانٍ (15-20%)"
+            st_badge = "warn2"
+        elif rate >= 10.0:
+            st_text = "إنذار أول (10-15%)"
+            st_badge = "warn1"
+        else:
+            st_text = "مستمر طبيعي"
+            st_badge = "safe"
+
+        records.append({
+            "trainee_id": str(row.get('رقم المتدرب', '')),
+            "trainee_name": str(row.get('اسم المتدرب', '')),
+            "department": str(row.get('اسم القسم', '')),
+            "course_name": str(row.get('اسم المقرر', '')),
+            "section_no": str(row.get('أرقام شعب المقرر', '')),
+            "absence_rate": round(rate, 2),
+            "absence_hours": round(float(row['hours']), 1),
+            "status_text": st_text,
+            "status_badge": st_badge
+        })
+
+    return jsonify({
+        "success": True,
+        "records": records,
+        "stats": {
+            "total": total_records,
+            "danger": danger_count,
+            "warn2": warn2_count,
+            "warn1": warn1_count,
+            "safe": safe_count
+        }
+    })
+
+# مسارات سير العملية التدريبية والأرشيف
 @app.route('/admin/attendance')
 def attendance_tracker():
     if not session.get("logged_in"):
         return redirect(url_for("admin"))
     return render_template('attendance_tracker.html', is_archived_view=False)
 
-# 2. مسار اعتماد وحفظ التقرير (Snapshot)
 @app.route('/admin/attendance/approve', methods=['POST'])
 def approve_report():
     if not session.get("logged_in"):
@@ -274,7 +468,6 @@ def approve_report():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-# 3. شاشة سجل الأرشيف للتقارير المعتمدة (تضم الحقول الإحصائية الجديدة)
 @app.route('/admin/attendance/archive')
 def attendance_archive():
     if not session.get("logged_in"):
@@ -293,7 +486,6 @@ def attendance_archive():
     conn.close()
     return render_template('attendance_archive.html', reports=reports)
 
-# 4. فتح واستعراض أي تقرير مؤرشف مسبقاً بكامل رسوماته ونموذجه الرسمي
 @app.route('/admin/attendance/archive/<int:report_id>')
 def get_archived_report(report_id):
     if not session.get("logged_in"):
@@ -308,7 +500,6 @@ def get_archived_report(report_id):
         return "التقرير غير موجود", 404
     return render_template('attendance_tracker.html', archived_json=row['full_data_json'], is_archived_view=True)
 
-# 5. حذف تقرير معتمد من الأرشيف
 @app.route('/admin/attendance/archive/<int:report_id>/delete', methods=['POST'])
 def delete_archived_report(report_id):
     if not session.get("logged_in"):
