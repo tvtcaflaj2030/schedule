@@ -3,82 +3,240 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>استعلام نسب الغياب - معهد الأفلاج</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <title>استعلام نسب الغياب والإنذارات — بوابة المتدربين</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
-        body { background-color: #f0f4f8; color: #2d3748; min-height: 100vh; padding: 30px 15px; display: flex; justify-content: center; align-items: center; }
-        .card { background: #ffffff; border-radius: 24px; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.06); width: 100%; max-width: 550px; padding: 50px 30px; text-align: center; }
-        
-        .icon-box {
-            font-size: 55px;
-            color: #e53e3e;
-            margin-bottom: 25px;
-            animation: pulse 2s infinite ease-in-out;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 0.9; }
-            50% { transform: scale(1.08); opacity: 1; }
-            100% { transform: scale(1); opacity: 0.9; }
-        }
-
-        .alert-message {
-            font-size: 26px;
-            font-weight: 900;
-            color: #c53030;
-            line-height: 1.5;
-            margin-bottom: 15px;
-        }
-
-        .sub-text {
-            color: #718096;
-            font-size: 14px;
-            margin-bottom: 35px;
-        }
-
-        .back-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 28px;
-            background-color: #00877d;
-            color: white;
-            text-decoration: none;
-            border-radius: 12px;
-            font-weight: bold;
-            font-size: 14px;
-            transition: 0.25s ease;
-        }
-
-        .back-btn:hover {
-            background-color: #006e66;
-            transform: translateY(-2px);
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+        body { font-family: 'Cairo', sans-serif; }
     </style>
 </head>
-<body>
+<body class="bg-slate-100/70 text-slate-800 min-h-screen flex flex-col justify-between">
 
-<div class="card">
-    <div class="icon-box">
-        <i class="fa-solid fa-screwdriver-wrench"></i>
-    </div>
-    
-    <div class="alert-message">
-        جاري العمل على تطوير هذه الصفحة<br>قريباً
-    </div>
+    <!-- الهيدر -->
+    <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="/" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors" title="الرئيسية">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </a>
+                <div>
+                    <h1 class="font-black text-sm sm:text-base text-slate-800">بوابة متابعة الحضور والغياب</h1>
+                    <p class="text-[11px] text-slate-400">المعهد الصناعي الثانوي بالأفلاج</p>
+                </div>
+            </div>
+            <a href="/schedule" class="text-xs font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                <i class="fa-solid fa-table-cells"></i>
+                <span>جدولك التدريبي</span>
+            </a>
+        </div>
+    </header>
 
-    <p class="sub-text">سيتم إتاحة خدمة استعلام نسب الغياب والمقررات فور اكتمال التحديثات الفنية.</p>
+    <!-- المحتوى الرئيسي -->
+    <main class="max-w-4xl mx-auto px-4 py-8 space-y-6 w-full flex-1">
 
-    <a href="/" class="back-btn">
-        <i class="fa-solid fa-arrow-right"></i>
-        <span>العودة للصفحة الرئيسية</span>
-    </a>
-</div>
+        <!-- بطاقة البحث -->
+        <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-center">
+            <div class="w-14 h-14 bg-emerald-100 text-emerald-800 rounded-2xl flex items-center justify-center text-2xl mx-auto shadow-inner">
+                <i class="fa-solid fa-user-clock"></i>
+            </div>
+            <div>
+                <h2 class="text-lg sm:text-xl font-black text-slate-800">الاستعلام عن نسب الغياب والإنذارات</h2>
+                <p class="text-xs text-slate-500 mt-1">أدخل رقمك التدريبي لمتابعة وضعك في المقررات والتأكد من عدم وصولك لمرحلة الحرمان</p>
+            </div>
 
-</div>
-    <!-- شارة التطوير السريعة -->
+            <form id="absence-form" class="max-w-md mx-auto space-y-3 pt-2">
+                <div class="relative">
+                    <input type="text" id="trainee-id-input" maxlength="9" placeholder="أدخل الرقم التدريبي (مثال: 444156949)" required
+                        class="w-full bg-slate-50 border-2 border-slate-200 hover:border-emerald-600 focus:border-emerald-700 rounded-2xl px-5 py-3 text-center text-base font-extrabold text-slate-800 tracking-wider focus:outline-none transition-all shadow-inner">
+                </div>
+                <button type="submit" id="btn-submit" class="w-full py-3 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <span>استعلام عن المقررات</span>
+                </button>
+            </form>
+
+            <div id="error-box" class="hidden p-3 rounded-2xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 max-w-md mx-auto"></div>
+        </div>
+
+        <!-- دليل نسب الغياب المعتمدة -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[11px] font-bold">
+            <div class="p-2.5 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200">
+                <span class="block text-xs font-black">أقل من 10%</span>
+                <span>وضع آمن (مستمر)</span>
+            </div>
+            <div class="p-2.5 rounded-2xl bg-amber-50 text-amber-800 border border-amber-200">
+                <span class="block text-xs font-black">10% - 14.99%</span>
+                <span>إنذار أول</span>
+            </div>
+            <div class="p-2.5 rounded-2xl bg-orange-50 text-orange-900 border border-orange-200">
+                <span class="block text-xs font-black">15% - 19.99%</span>
+                <span>إنذار ثانٍ (خطر)</span>
+            </div>
+            <div class="p-2.5 rounded-2xl bg-rose-50 text-rose-900 border border-rose-200">
+                <span class="block text-xs font-black">20% فأكثر</span>
+                <span>حرمان نظامي</span>
+            </div>
+        </div>
+
+        <!-- نتائج الاستعلام (مخفية افتراضياً) -->
+        <div id="result-box" class="hidden space-y-4">
+
+            <!-- بطاقة بيانات المتدرب والشريط التحذيري الفوري -->
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div>
+                        <h3 id="res-name" class="text-base font-black text-slate-900">-</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            الرقم التدريبي: <span id="res-id" class="font-bold text-slate-700">-</span> — 
+                            <span id="res-dept" class="font-bold text-emerald-800">-</span>
+                        </p>
+                    </div>
+                    <div id="res-overall-badge" class="px-4 py-1.5 rounded-xl text-xs font-black self-start sm:self-center"></div>
+                </div>
+
+                <!-- شريط الإشعار الفوري -->
+                <div id="res-alert-banner" class="p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3"></div>
+            </div>
+
+            <!-- جدول المقررات وساعات ونسب الغياب -->
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b border-slate-100">
+                    <h4 class="font-extrabold text-xs text-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-book-bookmark text-emerald-800"></i>
+                        تفاصيل الغياب في المقررات المسجلة
+                    </h4>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-xs">
+                        <thead class="bg-slate-100/70 text-slate-700 font-bold border-b border-slate-200">
+                            <tr>
+                                <th class="p-3">اسم المقرر</th>
+                                <th class="p-3 text-center">الشعبة</th>
+                                <th class="p-3 text-center">ساعات الغياب (الإجمالية)</th>
+                                <th class="p-3 text-center">نسبة الغياب</th>
+                                <th class="p-3 text-center">الحالة النظامية</th>
+                            </tr>
+                        </thead>
+                        <tbody id="courses-tbody" class="divide-y divide-slate-100 font-medium"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- التذييل -->
+    <footer class="text-center py-4 text-xs text-slate-400 border-t border-slate-200 bg-white">
+        نظام متابعة الحضور والغياب — المعهد الصناعي الثانوي بالأفلاج © 2026
+    </footer>
+
+    <script>
+        document.getElementById('absence-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const traineeId = document.getElementById('trainee-id-input').value.trim();
+            const btn = document.getElementById('btn-submit');
+            const errorBox = document.getElementById('error-box');
+            const resultBox = document.getElementById('result-box');
+
+            errorBox.classList.add('hidden');
+            resultBox.classList.add('hidden');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>جاري الاستعلام...</span>';
+
+            try {
+                const formData = new FormData();
+                formData.append('trainee_id', traineeId);
+
+                const response = await fetch('/search_absence', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('res-name').textContent = data.trainee_name;
+                    document.getElementById('res-id').textContent = data.trainee_id;
+                    document.getElementById('res-dept').textContent = data.department;
+
+                    // تخصيص الإشعار العلوي بناء على أعلى نسبة وصل لها
+                    const banner = document.getElementById('res-alert-banner');
+                    const overallBadge = document.getElementById('res-overall-badge');
+
+                    if (data.max_rate >= 20.0) {
+                        banner.className = "p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3 bg-rose-50 text-rose-900 border border-rose-200";
+                        banner.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-lg text-rose-600"></i><span>تنبيه نظامي حرج: لقد بلغت نسبة الحرمان (20% فأكثر) في مقرر أو أكثر، وتعتبر محروماً من الاختبار النهائي نظاماً. يرجى مراجعة إدارة شؤون المتدربين فوراً.</span>';
+                        overallBadge.className = "px-4 py-1.5 rounded-xl text-xs font-black bg-rose-100 text-rose-900 border border-rose-200";
+                        overallBadge.textContent = "حالة حرمان نظامي";
+                    } else if (data.max_rate >= 15.0) {
+                        banner.className = "p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3 bg-orange-50 text-orange-950 border border-orange-200";
+                        banner.innerHTML = '<i class="fa-solid fa-circle-exclamation text-lg text-orange-600"></i><span>تحذير شديد (إنذار ثانٍ): أنت قريب جداً من الحرمان النهائي (بلغت 15% أو أكثر)، احرص على عدم تفويت أي ساعة قادمة وراجع المرشد التدريبي.</span>';
+                        overallBadge.className = "px-4 py-1.5 rounded-xl text-xs font-black bg-orange-100 text-orange-950 border border-orange-200";
+                        overallBadge.textContent = "إنذار ثانٍ (خطر حرمان)";
+                    } else if (data.max_rate >= 10.0) {
+                        banner.className = "p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3 bg-amber-50 text-amber-900 border border-amber-200";
+                        banner.innerHTML = '<i class="fa-solid fa-bell text-lg text-amber-600"></i><span>تنبيه (إنذار أول): لقد تجاوزت نسبة غيابك 10% في بعض المقررات، نرجو الالتزام التام بالتدريب لتجنب الإنذار الثاني.</span>';
+                        overallBadge.className = "px-4 py-1.5 rounded-xl text-xs font-black bg-amber-100 text-amber-900 border border-amber-200";
+                        overallBadge.textContent = "إنذار أول";
+                    } else {
+                        banner.className = "p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3 bg-emerald-50 text-emerald-900 border border-emerald-200";
+                        banner.innerHTML = '<i class="fa-solid fa-circle-check text-lg text-emerald-600"></i><span>وضعك التدريبي ممتاز: جميع نسب غيابك ضمن النطاق الآمن (أقل من 10%). استمر على هذا الالتزام!</span>';
+                        overallBadge.className = "px-4 py-1.5 rounded-xl text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-200";
+                        overallBadge.textContent = "مستمر طبيعي (آمن)";
+                    }
+
+                    // بناء جدول المقررات
+                    const tbody = document.getElementById('courses-tbody');
+                    tbody.innerHTML = '';
+
+                    data.courses.forEach(c => {
+                        let badgeClass = '';
+                        if (c.status_color === 'danger') {
+                            badgeClass = 'bg-rose-100 text-rose-900 border border-rose-200';
+                        } else if (c.status_color === 'warning-high') {
+                            badgeClass = 'bg-orange-100 text-orange-950 border border-orange-200';
+                        } else if (c.status_color === 'warning-low') {
+                            badgeClass = 'bg-amber-100 text-amber-900 border border-amber-200';
+                        } else {
+                            badgeClass = 'bg-emerald-100 text-emerald-900 border border-emerald-200';
+                        }
+
+                        const tr = document.createElement('tr');
+                        tr.className = "hover:bg-slate-50 transition-colors";
+                        tr.innerHTML = `
+                            <td class="p-3 text-slate-800 font-bold">${c.course_name}</td>
+                            <td class="p-3 text-center text-slate-500 font-mono">${c.section_no || '-'}</td>
+                            <td class="p-3 text-center text-slate-700 font-bold">${c.absence_hours} ساعة</td>
+                            <td class="p-3 text-center font-extrabold text-sm ${c.absence_rate >= 15 ? 'text-rose-700' : (c.absence_rate >= 10 ? 'text-amber-700' : 'text-emerald-700')}">
+                                ${c.absence_rate}%
+                            </td>
+                            <td class="p-3 text-center">
+                                <span class="inline-block px-3 py-1 rounded-xl text-[10.5px] font-black ${badgeClass}">
+                                    ${c.status_text}
+                                </span>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+
+                    resultBox.classList.remove('hidden');
+                } else {
+                    errorBox.textContent = data.message;
+                    errorBox.classList.remove('hidden');
+                }
+            } catch (err) {
+                errorBox.textContent = "حدث خطأ أثناء الاتصال بالخادم، يرجى المحاولة لاحقاً.";
+                errorBox.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> <span>استعلام عن المقررات</span>';
+            }
+        });
+    </script>
+
 <div style="position: fixed; bottom: 10px; left: 15px; font-size: 10px; font-weight: bold; color: #a0aec0; direction: ltr; font-family: monospace; z-index: 9999; pointer-events: none; opacity: 0.85;">
-    ⚡ Powered by ENG.TURKI
+     Powered by ENG.TURKI
 </body>
 </html>
