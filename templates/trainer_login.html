@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دخول المدربين والمسؤولين — المعهد الصناعي الثانوي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+        body { font-family: 'Cairo', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100/70 text-slate-800 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white max-w-md w-full p-8 rounded-3xl border border-slate-200 shadow-xl space-y-6">
+        <div class="text-center space-y-2">
+            <div class="w-16 h-16 bg-slate-800 text-white rounded-2xl flex items-center justify-center text-2xl mx-auto shadow-inner">
+                <i class="fa-solid fa-chalkboard-user"></i>
+            </div>
+            <h2 class="text-xl font-black text-slate-800">بوابة المدربين والمسؤولين</h2>
+            <p class="text-xs text-slate-400">المعهد الصناعي الثانوي بالأفلاج</p>
+        </div>
+
+        {% if error %}
+        <div class="p-3.5 rounded-2xl text-xs font-bold text-center bg-rose-50 text-rose-700 border border-rose-200">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form action="/trainer/login" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1.5">الرقم الوظيفي (رقم الحاسب)</label>
+                <input type="text" name="employee_id" required placeholder="أدخل رقمك الوظيفي" class="w-full bg-slate-50 border-2 border-slate-200 hover:border-slate-400 focus:border-slate-800 rounded-2xl px-4 py-3 text-center text-slate-900 font-extrabold text-base focus:outline-none transition-all">
+                <p class="text-[10.5px] text-slate-400 mt-1 text-center">لا داعي لكتابة الأصفار في البداية (مثل 28806 أو 028806 كلاهما مقبول)</p>
+            </div>
+
+            <button type="submit" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                <span>تسجيل الدخول للمنظومة</span>
+            </button>
+        </form>
+
+        <div class="text-center pt-2 border-t border-slate-100">
+            <a href="/" class="text-xs text-slate-400 hover:text-slate-600 font-bold">← العودة لبوابة المتدربين الرئيسية</a>
+        </div>
+    </div>
+
+</body>
+</html>
