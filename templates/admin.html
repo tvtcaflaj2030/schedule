@@ -14,7 +14,6 @@
 <body class="bg-slate-100/70 text-slate-800 min-h-screen">
 
     {% if not logged_in %}
-    <!-- شاشة تسجيل الدخول -->
     <div class="min-h-screen flex items-center justify-center p-4">
         <div class="bg-white max-w-md w-full p-8 rounded-3xl border border-slate-200 shadow-xl space-y-6">
             <div class="text-center space-y-2">
@@ -48,7 +47,6 @@
     </div>
     {% else %}
 
-    <!-- الهيدر العلوي بعد تسجيل الدخول -->
     <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -61,12 +59,15 @@
                 </div>
             </div>
 
-            <!-- الزر 1: زيارة بوابة المتدربين + تسجيل الخروج -->
             <div class="flex items-center gap-2.5">
-                <a href="/" target="_blank" class="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all" title="زيارة بوابة المتدربين الرئيسية">
+                <a href="/trainer" target="_blank" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all" title="بوابة المدربين والمسؤولين">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                    <span>بوابة المدربين</span>
+                </a>
+
+                <a href="/" target="_blank" class="px-3.5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all" title="زيارة بوابة المتدربين الرئيسية">
                     <i class="fa-solid fa-globe"></i>
-                    <span>زيارة بوابة المتدربين</span>
-                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-emerald-200"></i>
+                    <span>بوابة المتدربين</span>
                 </a>
 
                 <a href="/admin/logout" class="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 text-xs font-bold transition-all" title="تسجيل الخروج">
@@ -84,7 +85,7 @@
         </div>
         {% endif %}
 
-        <!-- البانر الترحيبي (بدون الزر 2) -->
+        <!-- البانر الترحيبي -->
         <section class="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white rounded-3xl p-7 shadow-lg border border-slate-700/40">
             <div class="max-w-2xl space-y-2 relative z-10">
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold border border-emerald-400/20 backdrop-blur-sm">
@@ -93,16 +94,16 @@
                 </div>
                 <h2 class="text-xl font-black text-white">منظومة متابعة سير العملية التدريبية (رايات)</h2>
                 <p class="text-xs text-slate-300 leading-relaxed">
-                    يمكنك الآن قراءة وتحليل تقارير رايات الأسبوعية (SO09 و ST06) بضغطة زر، واستخراج مؤشرات حضور المتدربين والمدربين، وتصدير التقارير الرسمية المعتمدة محلياً بالكامل وبأعلى درجات الخصوصية.
+                    تحليل تقارير رايات، ومتابعة نسب الحرمان، وتوزيع صلاحيات المدربين والمسؤولين بكل مرونة وسهولة.
                 </p>
             </div>
             <div class="absolute -left-10 -bottom-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
         </section>
 
-        <!-- بطاقات الخدمات الثلاث الأساسية -->
+        <!-- بطاقات الخدمات الأساسية -->
         <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-            <!-- البطاقة 1: الدخول لشاشة متابعة سير العملية التدريبية -->
+            <!-- البطاقة 1: سير العملية التدريبية -->
             <a href="/admin/attendance" class="group bg-white p-6 rounded-3xl border-2 border-emerald-600/40 hover:border-emerald-700 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
                 <div class="space-y-3">
                     <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-xl shadow-inner group-hover:scale-105 transition-transform">
@@ -110,7 +111,7 @@
                     </div>
                     <h3 class="text-base font-black text-slate-800 group-hover:text-emerald-800 transition-colors">متابعة سير العملية التدريبية</h3>
                     <p class="text-xs text-slate-500 leading-relaxed">
-                        تحليل تقارير رايات الأسبوعية، فحص نسب الحضور والغياب، واكتشاف الشعب المتأخرة في الرصد وتصدير التقارير المعتمدة.
+                        تحليل تقارير رايات الأسبوعية، فحص نسب الحضور، واكتشاف الشعب المتأخرة في الرصد وتصدير التقارير المعتمدة.
                     </p>
                 </div>
                 <div class="flex items-center text-xs font-black text-emerald-800 group-hover:translate-x-[-4px] transition-transform">
@@ -119,29 +120,29 @@
                 </div>
             </a>
 
-            <!-- البطاقة 2: رفع وتحديث الجداول PDF -->
+            <!-- البطاقة 2: رفع الشعب SO09 واستيراد المدربين -->
             <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
                 <div class="space-y-3">
                     <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center text-xl shadow-inner">
-                        <i class="fa-solid fa-file-pdf"></i>
+                        <i class="fa-solid fa-file-invoice"></i>
                     </div>
-                    <h3 class="text-base font-black text-slate-800">رفع وتحديث الجداول</h3>
+                    <h3 class="text-base font-black text-slate-800">تقرير الشعب والمدربين (SO09)</h3>
                     <p class="text-xs text-slate-500 leading-relaxed">
-                        تحديث ملف PDF المجمع الخاص بجداول المتدربين لتمكين الاستعلام برقم المتدرب التدريبي.
+                        رفع تقرير رايات SO09 لربط الشعب التدريبية بكل مدرب واستيراد أرقامهم الوظيفية تلقائياً.
                     </p>
                 </div>
 
                 <form method="POST" enctype="multipart/form-data" class="space-y-2 pt-2 border-t border-slate-100">
-                    <input type="hidden" name="action" value="upload_schedule">
-                    <label class="block text-[11px] font-bold text-slate-500">اختر ملف الجداول الجديد (PDF):</label>
-                    <input type="file" name="pdf_file" accept=".pdf" required class="block w-full text-xs text-slate-500 file:mr-0 file:ml-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
+                    <input type="hidden" name="action" value="upload_so09_file">
+                    <label class="block text-[11px] font-bold text-slate-500">اختر ملف SO09 (CSV أو Excel):</label>
+                    <input type="file" name="so09_file" accept=".csv, .xlsx, .xls" required class="block w-full text-xs text-slate-500 file:mr-0 file:ml-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
                     <button type="submit" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-colors mt-2 shadow-sm">
-                        رفع وتحديث ملف الجداول
+                        رفع ملف الشعب واستيراد المدربين
                     </button>
                 </form>
             </div>
 
-            <!-- البطاقة 3: رفع ملف نسب الغياب (CSV/Excel) وزر الكشوفات المباشر -->
+            <!-- البطاقة 3: رفع ملف الغياب وزر الكشوفات -->
             <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
                 <div class="space-y-3">
                     <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center text-xl shadow-inner">
@@ -149,13 +150,13 @@
                     </div>
                     <h3 class="text-base font-black text-slate-800">بيانات نسب الغياب والحرمان</h3>
                     <p class="text-xs text-slate-500 leading-relaxed">
-                        رفع ملف رايات الشامل لنسب الغياب (CSV أو Excel) لتفعيل استعلام الطلاب ولوحة فرز الكشوفات.
+                        رفع ملف رايات الشامل لنسب الغياب لتفعيل استعلام الطلاب ولوحة فرز الكشوفات.
                     </p>
                 </div>
 
                 <form method="POST" enctype="multipart/form-data" class="space-y-2 pt-2 border-t border-slate-100">
                     <input type="hidden" name="action" value="upload_absence_file">
-                    <label class="block text-[11px] font-bold text-slate-500">اختر ملف رايات (CSV أو Excel):</label>
+                    <label class="block text-[11px] font-bold text-slate-500">اختر ملف الغياب (CSV أو Excel):</label>
                     <input type="file" name="absence_file" accept=".csv, .xlsx, .xls" required class="block w-full text-xs text-slate-500 file:mr-0 file:ml-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer">
                     <button type="submit" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-colors mt-2 shadow-sm">
                         رفع وتحديث ملف الغياب
@@ -165,15 +166,119 @@
                 <div class="pt-1 border-t border-slate-100">
                     <a href="/admin/absence_dashboard" class="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
                         <i class="fa-solid fa-filter"></i>
-                        <span>فتح لوحة فرز الكشوفات وسحب الأسماء</span>
+                        <span>فتح كشوفات الغياب الشاملة</span>
                     </a>
                 </div>
             </div>
 
         </section>
 
+        <!-- إدارة الصلاحيات: التحكم بالمدربين والمسؤولين -->
+        <section class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                    <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-user-shield text-emerald-800"></i>
+                        إدارة صلاحيات المدربين والمسؤولين
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">
+                        المدرب يشاهد فقط طلابه وشعبه المسندة، بينما المسؤول (رئيس القسم / المرشد) يشاهد كافة المتدربين. يتم تجاهل الأصفار في بداية الرقم تلقائياً.
+                    </p>
+                </div>
+                
+                <!-- نموذج إضافة مدرب أو مسؤول يدوياً -->
+                <form action="/admin/trainer_role/add" method="POST" class="flex flex-wrap items-center gap-2">
+                    <input type="text" name="employee_id" required placeholder="الرقم الوظيفي (مثال: 28806)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700 w-36">
+                    <input type="text" name="trainer_name" required placeholder="اسم المدرب / المسؤول" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700 w-44">
+                    <select name="role" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                        <option value="trainer">مدرب (شعبه فقط)</option>
+                        <option value="manager">مسؤول (صلاحية كاملة)</option>
+                    </select>
+                    <button type="submit" class="px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-1">
+                        <i class="fa-solid fa-plus"></i> إضافة
+                    </button>
+                </form>
+            </div>
+
+            <!-- جدول الصلاحيات -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-right text-xs">
+                    <thead class="bg-slate-100/70 text-slate-700 font-bold border-b border-slate-200">
+                        <tr>
+                            <th class="p-3">الرقم الوظيفي</th>
+                            <th class="p-3">الاسم</th>
+                            <th class="p-3 text-center">الصلاحية الحالية</th>
+                            <th class="p-3 text-center w-56">تغيير الصلاحية</th>
+                            <th class="p-3 text-center w-24">حذف</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 font-medium">
+                        {% if trainers_list|length == 0 %}
+                        <tr>
+                            <td colspan="5" class="p-8 text-center text-slate-400 font-bold">
+                                لا يوجد مدربين مسجلين حالياً. ارفع ملف SO09 ليتم استيرادهم تلقائياً أو أضفهم يدوياً من النموذج أعلاه.
+                            </td>
+                        </tr>
+                        {% else %}
+                        {% for t in trainers_list %}
+                        <tr class="hover:bg-slate-50/80 transition-colors">
+                            <td class="p-3 text-slate-800 font-mono font-bold">{{ t['employee_id'] }}</td>
+                            <td class="p-3 text-slate-900 font-bold">{{ t['trainer_name'] }}</td>
+                            <td class="p-3 text-center">
+                                {% if t['role'] == 'manager' %}
+                                <span class="px-3 py-1 rounded-xl text-[10.5px] font-black bg-purple-100 text-purple-900 border border-purple-200">
+                                    <i class="fa-solid fa-shield-halved ml-1"></i> مسؤول (اطلاع كامل)
+                                </span>
+                                {% else %}
+                                <span class="px-3 py-1 rounded-xl text-[10.5px] font-black bg-emerald-100 text-emerald-900 border border-emerald-200">
+                                    <i class="fa-solid fa-chalkboard-user ml-1"></i> مدرب (شعبه فقط)
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="p-3 text-center">
+                                <select onchange="changeRole('{{ t['employee_id'] }}', this.value)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                                    <option value="trainer" {% if t['role'] == 'trainer' %}selected{% endif %}>مدرب (شعبه فقط)</option>
+                                    <option value="manager" {% if t['role'] == 'manager' %}selected{% endif %}>مسؤول (صلاحية كاملة)</option>
+                                </select>
+                            </td>
+                            <td class="p-3 text-center">
+                                <form action="/admin/trainer_role/delete/{{ t['employee_id'] }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف هذا الحساب؟');">
+                                    <button type="submit" class="text-rose-500 hover:text-rose-700 font-bold p-1" title="حذف">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
     </main>
     {% endif %}
 
+    <script>
+        async function changeRole(empId, newRole) {
+            const formData = new FormData();
+            formData.append('employee_id', empId);
+            formData.append('role', newRole);
+            try {
+                const res = await fetch('/admin/trainer_role/update', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('خطأ أثناء التعديل: ' + data.message);
+                }
+            } catch (err) {
+                alert('تعذر الاتصال بالسيرفر.');
+            }
+        }
+    </script>
 </body>
 </html>
