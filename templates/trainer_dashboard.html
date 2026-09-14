@@ -40,27 +40,26 @@
 
     <main class="max-w-5xl mx-auto px-4 py-8 space-y-6 w-full flex-1">
 
-        <!-- بطاقات المدرب الثلاث الرئيسية -->
         <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-            <!-- البطاقة 1: عرض جدول المدرب -->
+            <!-- البطاقة 1: فتح جدول المدرب PDF مباشرة بضغطة زر واحدة -->
             <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4 hover:shadow-md transition-all">
                 <div class="space-y-3">
-                    <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center text-xl shadow-inner">
-                        <i class="fa-solid fa-table-cells"></i>
+                    <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-800 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-file-pdf"></i>
                     </div>
                     <h3 class="text-base font-black text-slate-800">جدول التدريب الأسبوعي</h3>
                     <p class="text-xs text-slate-500 leading-relaxed">
-                        الاطلاع على الجدول الأسبوعي للمقررات والشعب وأوقات وقاعات التدريب المعتمدة.
+                        استعراض وتنزيل ملف PDF المعتمد الخاص بجدولك التدريبي وشعبك وأوقات التدريب مباشرة.
                     </p>
                 </div>
-                <a href="/schedule" target="_blank" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all">
-                    <span>فتح جدول التدريب</span>
+                <a href="/trainer/my_schedule_pdf" target="_blank" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all">
+                    <span>عرض وطباعة جدولي (PDF)</span>
                     <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                 </a>
             </div>
 
-            <!-- البطاقة 2: لوحة فرز كشوفات الغياب والإنذارات (مخصصة حسب الصلاحية) -->
+            <!-- البطاقة 2: كشوفات الغياب والإنذارات -->
             <div class="bg-white p-6 rounded-3xl border-2 border-emerald-600/40 hover:border-emerald-700 shadow-sm flex flex-col justify-between space-y-4 hover:shadow-md transition-all">
                 <div class="space-y-3">
                     <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-xl shadow-inner">
@@ -86,7 +85,7 @@
                 </a>
             </div>
 
-            <!-- البطاقة 3: الخدمات الذاتية للمدرب -->
+            <!-- البطاقة 3: الخدمات الذاتية -->
             <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4 hover:shadow-md transition-all">
                 <div class="space-y-3">
                     <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center text-xl shadow-inner">
