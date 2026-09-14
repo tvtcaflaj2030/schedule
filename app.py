@@ -74,10 +74,10 @@ SERVICES_LIST = [
 ]
 
 TRAINER_SERVICES = [
-    {"title": "نظام رايات للمدربين", "url": "https://tvtc.gov.sa/ar/Departments/tvtcdepartments/Rayat/pages/default.aspx", "icon": "fa-chalkboard-user"},
+    {"title": "نظام رايات", "url": "https://tvtc.gov.sa/ar/Departments/tvtcdepartments/Rayat/pages/E-Services.aspx", "icon": "fa-chalkboard-user"},
     {"title": "منصة التدرب الإلكتروني (تقني)", "url": "https://tvtclms.edu.sa/?ref=saudiwins.com", "icon": "fa-laptop-code"},
-    {"title": "البريد الإلكتروني الوزاري", "url": "https://outlook.office.com", "icon": "fa-envelope"},
-    {"title": "الخدمات الذاتية للموظفين (فارس)", "url": "https://sshr.moe.gov.sa/", "icon": "fa-id-card"}
+    {"title": "البريد الإلكتروني", "url": "https://outlook.office.com", "icon": "fa-envelope"},
+    {"title": "بوابة الموظفين", "url": "https://serv.tvtc.gov.sa/", "icon": "fa-id-card"}
 ]
 
 def load_absence_dataframe():
