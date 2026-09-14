@@ -14,6 +14,7 @@ ADMIN_PASSWORD = "turki2026"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEDULES_PDF = os.path.join(BASE_DIR, "schedules.pdf")
+TRAINERS_SCHEDULES_PDF = os.path.join(BASE_DIR, "trainers_schedules.pdf")
 ATTENDANCE_DATA_FILE = os.path.join(BASE_DIR, "absence_data.csv")
 SO09_DATA_FILE = os.path.join(BASE_DIR, "so09_data.csv")
 DB_PATH = os.path.join(BASE_DIR, "attendance_archive.db")
@@ -23,18 +24,15 @@ def normalize_digits(text):
         return ""
     arabic_digits = "٠١٢٣٤٥٦٧٨٩"
     english_digits = "0123456789"
-    cleaned = str(text).translate(str.maketrans(arabic_digits, english_digits)).strip()
-    return cleaned
+    return str(text).translate(str.maketrans(arabic_digits, english_digits)).strip()
 
 def clean_employee_id(text):
     digits = normalize_digits(text)
-    # إزالة الأصفار من البداية
     return digits.lstrip('0')
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # جدول التقارير المعتمدة
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS approved_reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,13 +51,12 @@ def init_db():
             full_data_json TEXT NOT NULL
         )
     ''')
-    # جدول المدربين والصلاحيات
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS trainers_roles (
             employee_id TEXT PRIMARY KEY,
             trainer_name TEXT NOT NULL,
             department TEXT DEFAULT '',
-            role TEXT DEFAULT 'trainer'  -- 'trainer' أو 'manager'
+            role TEXT DEFAULT 'trainer'
         )
     ''')
     conn.commit()
@@ -124,6 +121,23 @@ def find_student_pages(pdf_path, trainee_id):
         for page_num in range(len(doc)):
             clean_page_text = normalize_digits(doc[page_num].get_text())
             if id_pattern.search(clean_page_text):
+                matched_pages.append(page_num)
+        return matched_pages
+    except Exception:
+        return []
+
+def find_trainer_pages(pdf_path, search_term):
+    if not search_term or not os.path.exists(pdf_path):
+        return []
+    term_clean = clean_employee_id(search_term)
+    matched_pages = []
+    try:
+        doc = fitz.open(pdf_path)
+        for page_num in range(len(doc)):
+            text = doc[page_num].get_text()
+            norm_text = normalize_digits(text)
+            clean_text_no_zeros = re.sub(r'\b0+(\d+)\b', r'\1', norm_text)
+            if term_clean in clean_text_no_zeros or search_term in text:
                 matched_pages.append(page_num)
         return matched_pages
     except Exception:
@@ -234,7 +248,8 @@ def search_schedule():
 def get_schedule_image():
     pages_param = request.args.get("pages", "")
     if not pages_param or not os.path.exists(SCHEDULES_PDF):
-        return "معلمات غير صالحة", 400
+        return "معلمات غير صالحة أو الملف غير متوفر", 400
+
     try:
         page_indices = [int(p) for p in pages_param.split(",") if p.isdigit()]
         doc = fitz.open(SCHEDULES_PDF)
@@ -261,7 +276,7 @@ def get_schedule_image():
     except Exception as e:
         return str(e), 500
 
-# --- بوابة المدربين والمسؤولين الجديدة ---
+# --- بوابة المدربين والمسؤولين ---
 
 @app.route("/trainer")
 def trainer_login_page():
@@ -281,7 +296,6 @@ def trainer_login_action():
     conn.close()
 
     if not user:
-        # إذا لم يكن مضافاً يدوياً مسبقاً، نفحص ملف SO09
         df_sec = load_so09_dataframe()
         found_trainer = None
         if df_sec is not None and not df_sec.empty:
@@ -289,7 +303,6 @@ def trainer_login_action():
             matched = df_sec[df_sec['emp_clean'] == emp_id]
             if not matched.empty:
                 t_name = matched.iloc[0]['اسم المدرب']
-                # إضافة المدرب تلقائياً بصلاحية trainer
                 conn = sqlite3.connect(DB_PATH)
                 c = conn.cursor()
                 c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, 'trainer')", (emp_id, t_name))
@@ -315,6 +328,51 @@ def trainer_dashboard():
                            trainer_name=session.get("trainer_name"),
                            trainer_role=session.get("trainer_role"),
                            services=TRAINER_SERVICES)
+
+# مسار فتح جدول المدرب مباشرة كملف PDF
+@app.route("/trainer/my_schedule_pdf")
+def trainer_my_schedule_pdf():
+    if not session.get("trainer_id"):
+        return redirect(url_for("trainer_login_page"))
+
+    emp_id = session.get("trainer_id")
+    t_name = session.get("trainer_name", "")
+
+    if not os.path.exists(TRAINERS_SCHEDULES_PDF):
+        return """
+        <div style='font-family:sans-serif; text-align:center; padding:50px; direction:rtl;'>
+            <h2 style='color:#b91c1c;'>ملف جداول المدربين غير متوفر حالياً</h2>
+            <p style='color:#64748b;'>يرجى من إدارة المعهد رفع ملف جداول المدربين (PDF) من لوحة التحكم.</p>
+            <a href='/trainer/dashboard' style='display:inline-block; margin-top:15px; padding:10px 20px; background:#1e293b; color:#fff; text-decoration:none; border-radius:8px;'>العودة للوحة المدرب</a>
+        </div>
+        """, 404
+
+    pages = find_trainer_pages(TRAINERS_SCHEDULES_PDF, emp_id)
+    if not pages and t_name:
+        pages = find_trainer_pages(TRAINERS_SCHEDULES_PDF, t_name)
+
+    if not pages:
+        return f"""
+        <div style='font-family:sans-serif; text-align:center; padding:50px; direction:rtl;'>
+            <h2 style='color:#b91c1c;'>لم يتم العثور على جدول مطابق</h2>
+            <p style='color:#64748b;'>لم نتمكن من إيجاد صفحة الجدول للرقم الوظيفي ({emp_id}) أو الاسم ({t_name}) داخل الملف المرفوع.</p>
+            <a href='/trainer/dashboard' style='display:inline-block; margin-top:15px; padding:10px 20px; background:#1e293b; color:#fff; text-decoration:none; border-radius:8px;'>العودة للوحة المدرب</a>
+        </div>
+        """, 404
+
+    try:
+        doc = fitz.open(TRAINERS_SCHEDULES_PDF)
+        out_doc = fitz.open()
+        for p in pages:
+            if 0 <= p < len(doc):
+                out_doc.insert_pdf(doc, from_page=p, to_page=p)
+
+        pdf_bytes = io.BytesIO()
+        out_doc.save(pdf_bytes)
+        pdf_bytes.seek(0)
+        return send_file(pdf_bytes, mimetype="application/pdf", download_name=f"جدول_المدرب_{emp_id}.pdf")
+    except Exception as e:
+        return str(e), 500
 
 @app.route("/trainer/absence_view")
 def trainer_absence_view():
@@ -350,7 +408,6 @@ def trainer_logout():
     session.pop("trainer_role", None)
     return redirect(url_for("trainer_login_page"))
 
-# API بيانات الغياب المشتركة للمدرب والمسؤول
 @app.route("/api/trainer_absence_data")
 def api_trainer_absence_data():
     if not session.get("trainer_id"):
@@ -371,7 +428,6 @@ def api_trainer_absence_data():
     filtered['rate'] = pd.to_numeric(filtered[rate_col], errors='coerce').fillna(0.0)
     filtered['hours'] = pd.to_numeric(filtered[hours_col], errors='coerce').fillna(0.0)
 
-    # إذا كان مدرب عادي: يرى فقط شعبه المسندة
     if role == "trainer":
         df_sec = load_so09_dataframe()
         if df_sec is not None and not df_sec.empty:
@@ -381,13 +437,11 @@ def api_trainer_absence_data():
             filtered['sec_str'] = filtered['أرقام شعب المقرر'].astype(str).str.strip()
             filtered = filtered[filtered['sec_str'].isin(assigned_sections)]
         else:
-            filtered = filtered.iloc[0:0]  # فارغ لعدم وجود ملف الربط
+            filtered = filtered.iloc[0:0]
 
-    # إذا كان مسؤول واختار قسماً معيناً
     if role == "manager" and dept_filter != "ALL":
         filtered = filtered[filtered['اسم القسم'] == dept_filter]
 
-    # إحصائيات
     total_records = len(filtered)
     danger_count = len(filtered[filtered['rate'] >= 20.0])
     warn2_count = len(filtered[(filtered['rate'] >= 15.0) & (filtered['rate'] < 20.0)])
@@ -444,7 +498,7 @@ def api_trainer_absence_data():
         }
     })
 
-# --- لوحة تحكم الإدارة وإدارة الصلاحيات ---
+# --- لوحة الإدارة الرئيسية ---
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -466,7 +520,15 @@ def admin():
             file = request.files.get("pdf_file")
             if file and file.filename.endswith(".pdf"):
                 file.save(SCHEDULES_PDF)
-                msg = "تم رفع وتحديث ملف الجداول بنجاح!"
+                msg = "تم رفع وتحديث ملف جداول المتدربين بنجاح!"
+                msg_type = "success"
+
+        elif action == "upload_trainers_schedule":
+            if not session.get("logged_in"): return redirect(url_for("admin"))
+            file = request.files.get("pdf_file")
+            if file and file.filename.endswith(".pdf"):
+                file.save(TRAINERS_SCHEDULES_PDF)
+                msg = "تم رفع وتحديث ملف جداول المدربين بنجاح!"
                 msg_type = "success"
 
         elif action == "upload_absence_file":
@@ -490,7 +552,6 @@ def admin():
                 file.save(save_path)
                 global SO09_DATA_FILE
                 SO09_DATA_FILE = save_path
-                # استيراد المدربين تلقائياً إلى جدول الصلاحيات
                 df_sec = load_so09_dataframe()
                 if df_sec is not None and not df_sec.empty:
                     conn = sqlite3.connect(DB_PATH)
@@ -506,7 +567,6 @@ def admin():
                 msg = "تم رفع ملف الشعب (SO09) واستيراد قائمة المدربين تلقائياً!"
                 msg_type = "success"
 
-    # جلب قائمة المدربين والصلاحيات
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
