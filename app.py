@@ -119,7 +119,6 @@ def load_so09_dataframe():
     return None
 
 def get_trainer_sections(emp_id):
-    """استخراج قائمة الشعب المسندة للمدرب من واقع ملف SO09"""
     df_sec = load_so09_dataframe()
     if df_sec is None or df_sec.empty:
         return []
@@ -128,7 +127,6 @@ def get_trainer_sections(emp_id):
     matched = df_sec[df_sec['emp_clean'] == clean_target]
     if matched.empty:
         return []
-    # تحويل الشعب إلى نصوص خالية من الأصفار والكسور
     sections = []
     for s in matched['رمز المقرر'].dropna():
         s_str = str(s).split('.')[0].strip()
@@ -441,11 +439,10 @@ def trainer_logout():
     session.pop("trainer_role", None)
     return redirect(url_for("trainer_login_page"))
 
-# API موحد ومحكم للفصل التام بين المدرب والأدمن
+# API موحد ومحسن لحساب عدد السجلات وعدد المتدربين الفعليين بدقة
 @app.route("/api/absence_records_query")
 def api_absence_records_query():
-    # التحقق من مصدر الطلب
-    source = request.args.get("source", "") # 'trainer' or 'admin'
+    source = request.args.get("source", "")
     is_admin = session.get("logged_in", False)
     trainer_id = session.get("trainer_id", None)
     trainer_role = session.get("trainer_role", "trainer")
@@ -467,14 +464,13 @@ def api_absence_records_query():
     filtered['rate'] = pd.to_numeric(filtered[rate_col], errors='coerce').fillna(0.0)
     filtered['hours'] = pd.to_numeric(filtered[hours_col], errors='coerce').fillna(0.0)
 
-    # إذا كان الطلب من بوابة المدرب وكان المدرب برتبة trainer عادية
     if source == "trainer" and trainer_role == "trainer":
         assigned_sections = get_trainer_sections(trainer_id)
         if assigned_sections:
             filtered['sec_clean'] = filtered['أرقام شعب المقرر'].astype(str).apply(lambda x: str(x).split('.')[0].strip())
             filtered = filtered[filtered['sec_clean'].isin(assigned_sections)]
         else:
-            filtered = filtered.iloc[0:0] # لا توجد شعب مسندة في SO09
+            filtered = filtered.iloc[0:0]
 
     dept_filter = request.args.get("department", "ALL")
     course_filter = request.args.get("course", "ALL")
@@ -483,13 +479,15 @@ def api_absence_records_query():
     if dept_filter != "ALL" and 'اسم القسم' in filtered.columns:
         filtered = filtered[filtered['اسم القسم'] == dept_filter]
 
-    # استخراج قائمة المقررات التابعة لهذا النطاق فقط
     available_courses = sorted([c for c in filtered['اسم المقرر'].dropna().unique() if str(c).strip()]) if 'اسم المقرر' in filtered.columns else []
 
     if course_filter != "ALL" and 'اسم المقرر' in filtered.columns:
         filtered = filtered[filtered['اسم المقرر'] == course_filter]
 
     total_records = len(filtered)
+    # حساب عدد المتدربين الفريدين فعلياً (بدون تكرار)
+    total_unique_trainees = int(filtered['رقم المتدرب'].nunique()) if 'رقم المتدرب' in filtered.columns else total_records
+
     danger_count = len(filtered[filtered['rate'] >= 20.0])
     warn2_count = len(filtered[(filtered['rate'] >= 15.0) & (filtered['rate'] < 20.0)])
     warn1_count = len(filtered[(filtered['rate'] >= 10.0) & (filtered['rate'] < 15.0)])
@@ -503,6 +501,8 @@ def api_absence_records_query():
         filtered = filtered[(filtered['rate'] >= 10.0) & (filtered['rate'] < 15.0)]
     elif status_filter == "safe":
         filtered = filtered[filtered['rate'] < 10.0]
+
+    current_filtered_trainees = int(filtered['رقم المتدرب'].nunique()) if 'رقم المتدرب' in filtered.columns else len(filtered)
 
     filtered = filtered.sort_values(by='rate', ascending=False)
     records = []
@@ -538,7 +538,9 @@ def api_absence_records_query():
         "records": records,
         "courses": available_courses,
         "stats": {
-            "total": total_records,
+            "total_records": total_records,
+            "total_trainees": total_unique_trainees,
+            "current_trainees": current_filtered_trainees,
             "danger": danger_count,
             "warn2": warn2_count,
             "warn1": warn1_count,
