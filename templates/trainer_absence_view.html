@@ -47,8 +47,16 @@
 
     <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-        <!-- العدادات الإحصائية -->
-        <section class="grid grid-cols-2 md:grid-cols-4 gap-4 no-print">
+        <!-- العدادات الإحصائية الخمسة الذكية (إضافة بطاقة عدد المتدربين الفعليين) -->
+        <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 no-print">
+            <!-- البطاقة الجديدة: إجمالي المتدربين المسندين بدون تكرار -->
+            <div class="bg-white p-4 rounded-2xl border-r-4 border-blue-600 border border-slate-200 shadow-sm">
+                <p class="text-[11px] text-slate-400 font-bold">إجمالي المتدربين (الفعلي)</p>
+                <div class="flex items-baseline gap-1.5 mt-1">
+                    <h3 id="stat-trainees" class="text-2xl font-black text-blue-700">0</h3>
+                    <span class="text-[10.5px] text-slate-400 font-bold">متدرب</span>
+                </div>
+            </div>
             <div class="bg-white p-4 rounded-2xl border-r-4 border-rose-600 border border-slate-200 shadow-sm">
                 <p class="text-[11px] text-slate-400 font-bold">المحرومون (20%+)</p>
                 <h3 id="stat-danger" class="text-2xl font-black text-rose-700 mt-1">0</h3>
@@ -89,7 +97,6 @@
                 </div>
                 {% endif %}
 
-                <!-- فلتر اسم المقرر التدريبي -->
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">اسم المقرر:</label>
                     <select id="filter-course" onchange="fetchData(false)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
@@ -121,7 +128,16 @@
         <!-- جدول الكشف المفروز -->
         <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between no-print">
-                <span class="text-xs font-black text-slate-700">الكشف المعروض (<span id="records-count-badge">0</span> سجل)</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-black text-slate-700">الكشف المعروض:</span>
+                    <span class="px-2.5 py-1 rounded-xl text-xs font-extrabold bg-blue-50 text-blue-800 border border-blue-200">
+                        <i class="fa-solid fa-user-graduate ml-1"></i>
+                        <span id="trainees-count-badge">0</span> متدرب
+                    </span>
+                    <span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">
+                        <span id="records-count-badge">0</span> سجل
+                    </span>
+                </div>
                 <span class="text-[11px] text-slate-400">مرتب تلقائياً بحسب الأكثر غياباً</span>
             </div>
 
@@ -160,17 +176,19 @@
             tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold"><i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري استرجاع الكشف...</td></tr>';
 
             try {
-                // إرسال source=trainer لعزل صلاحيات المدرب تماماً عن أي جلسة أدمن مفتوحة
                 const res = await fetch(`/api/absence_records_query?source=trainer&department=${encodeURIComponent(dept)}&course=${encodeURIComponent(course)}&status=${status}`);
                 const data = await res.json();
 
                 if (data.success) {
                     cachedData = data.records;
+
+                    document.getElementById('stat-trainees').textContent = data.stats.total_trainees;
                     document.getElementById('stat-danger').textContent = data.stats.danger;
                     document.getElementById('stat-warn2').textContent = data.stats.warn2;
                     document.getElementById('stat-warn1').textContent = data.stats.warn1;
                     document.getElementById('stat-safe').textContent = data.stats.safe;
-                    document.getElementById('records-count-badge').textContent = data.records.length;
+
+                    updateCounters(data.records);
 
                     if (updateCourses && courseSelect && data.courses) {
                         const currentVal = courseSelect.value;
@@ -192,6 +210,12 @@
             } catch (err) {
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-rose-600 font-bold">تعذر تحميل الكشف من السيرفر.</td></tr>';
             }
+        }
+
+        function updateCounters(records) {
+            const uniqueTrainees = new Set(records.map(r => r.trainee_id)).size;
+            document.getElementById('trainees-count-badge').textContent = uniqueTrainees;
+            document.getElementById('records-count-badge').textContent = records.length;
         }
 
         function renderTable(records) {
@@ -240,6 +264,7 @@
         function clientSearch() {
             const q = document.getElementById('filter-search').value.toLowerCase().trim();
             if (!q) {
+                updateCounters(cachedData);
                 renderTable(cachedData);
                 return;
             }
@@ -248,6 +273,7 @@
                 r.trainee_id.includes(q) ||
                 r.course_name.toLowerCase().includes(q)
             );
+            updateCounters(filtered);
             renderTable(filtered);
         }
 
