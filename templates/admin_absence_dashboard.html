@@ -56,7 +56,7 @@
         </div>
         {% else %}
 
-        <!-- ترويسة الطباعة الورقية A4 فقط -->
+        <!-- ترويسة الطباعة الورقية A4 -->
         <div class="hidden print:block border-b-2 border-slate-800 pb-3 mb-4">
             <div class="flex justify-between items-center text-xs">
                 <div>
@@ -74,8 +74,16 @@
             </div>
         </div>
 
-        <!-- العدادات الإحصائية -->
-        <section class="grid grid-cols-2 md:grid-cols-4 gap-4 no-print">
+        <!-- العدادات الإحصائية الخمسة الذكية (إضافة بطاقة عدد المتدربين الفعليين) -->
+        <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 no-print">
+            <!-- البطاقة الجديدة: إجمالي المتدربين بدون تكرار -->
+            <div class="bg-white p-4 rounded-2xl border-r-4 border-blue-600 border border-slate-200 shadow-sm">
+                <p class="text-[11px] text-slate-400 font-bold">إجمالي المتدربين (الفعلي)</p>
+                <div class="flex items-baseline gap-1.5 mt-1">
+                    <h3 id="stat-trainees" class="text-2xl font-black text-blue-700">0</h3>
+                    <span class="text-[10.5px] text-slate-400 font-bold">متدرب</span>
+                </div>
+            </div>
             <div class="bg-white p-4 rounded-2xl border-r-4 border-rose-600 border border-slate-200 shadow-sm">
                 <p class="text-[11px] text-slate-400 font-bold">المحرومون (20%+)</p>
                 <h3 id="stat-danger" class="text-2xl font-black text-rose-700 mt-1">0</h3>
@@ -94,10 +102,9 @@
             </div>
         </section>
 
-        <!-- شريط الفلاتر المحدث -->
+        <!-- شريط الفلاتر -->
         <section class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3 no-print">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <!-- فلتر القسم -->
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">القسم التدريبي:</label>
                     <select id="filter-department" onchange="fetchFilteredData(true)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
@@ -108,7 +115,6 @@
                     </select>
                 </div>
 
-                <!-- فلتر اسم المادة (المقرر) -->
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">اسم المادة (المقرر):</label>
                     <select id="filter-course" onchange="fetchFilteredData(false)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
@@ -119,7 +125,6 @@
                     </select>
                 </div>
 
-                <!-- فلتر نسبة الغياب والإنذار -->
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">فئة نسبة الغياب:</label>
                     <select id="filter-status" onchange="fetchFilteredData(false)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
@@ -131,7 +136,6 @@
                     </select>
                 </div>
 
-                <!-- البحث المباشر -->
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">بحث سريع:</label>
                     <input type="text" id="filter-search" oninput="clientSideSearch()" placeholder="اسم المتدرب، الرقم، المقرر..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
@@ -142,7 +146,16 @@
         <!-- جدول الكشف وسحب الأسماء -->
         <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between no-print">
-                <span class="text-xs font-black text-slate-700">الكشف المفروز (<span id="records-count-badge">0</span> سجل)</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-black text-slate-700">الكشف المعروض:</span>
+                    <span class="px-2.5 py-1 rounded-xl text-xs font-extrabold bg-blue-50 text-blue-800 border border-blue-200">
+                        <i class="fa-solid fa-user-graduate ml-1"></i>
+                        <span id="trainees-count-badge">0</span> متدرب
+                    </span>
+                    <span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">
+                        <span id="records-count-badge">0</span> سجل
+                    </span>
+                </div>
                 <span class="text-[11px] text-slate-400">مرتب تلقائياً بحسب الأكثر غياباً</span>
             </div>
 
@@ -184,20 +197,20 @@
             tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold"><i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري استرجاع وفرز الكشف...</td></tr>';
 
             try {
-                // إرسال source=admin لضمان استرجاع كافة السجلات بصلاحية الإدارة الشاملة
                 const res = await fetch(`/api/absence_records_query?source=admin&department=${encodeURIComponent(dept)}&course=${encodeURIComponent(course)}&status=${status}`);
                 const data = await res.json();
 
                 if (data.success) {
                     cachedRecords = data.records;
 
+                    document.getElementById('stat-trainees').textContent = data.stats.total_trainees;
                     document.getElementById('stat-danger').textContent = data.stats.danger;
                     document.getElementById('stat-warn2').textContent = data.stats.warn2;
                     document.getElementById('stat-warn1').textContent = data.stats.warn1;
                     document.getElementById('stat-safe').textContent = data.stats.safe;
-                    document.getElementById('records-count-badge').textContent = data.records.length;
 
-                    // تحديث قائمة المواد إذا تم تغيير القسم
+                    updateCounters(data.records);
+
                     if (updateCoursesList && data.courses && courseSelect) {
                         const currentVal = courseSelect.value;
                         courseSelect.innerHTML = '<option value="ALL">كافة المقررات التدريبية</option>';
@@ -217,6 +230,12 @@
             } catch (err) {
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-rose-600 font-bold">تعذر تحميل الكشف من السيرفر.</td></tr>';
             }
+        }
+
+        function updateCounters(records) {
+            const uniqueTrainees = new Set(records.map(r => r.trainee_id)).size;
+            document.getElementById('trainees-count-badge').textContent = uniqueTrainees;
+            document.getElementById('records-count-badge').textContent = records.length;
         }
 
         function renderTable(records) {
@@ -265,6 +284,7 @@
         function clientSideSearch() {
             const query = document.getElementById('filter-search').value.toLowerCase().trim();
             if (!query) {
+                updateCounters(cachedRecords);
                 renderTable(cachedRecords);
                 return;
             }
@@ -274,6 +294,7 @@
                 r.course_name.toLowerCase().includes(query) ||
                 r.department.toLowerCase().includes(query)
             );
+            updateCounters(filtered);
             renderTable(filtered);
         }
 
