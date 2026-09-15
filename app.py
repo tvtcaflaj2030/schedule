@@ -78,7 +78,6 @@ TRAINER_SERVICES = [
     {"title": "الخدمات الذاتية للموظفين (فارس)", "url": "https://sshr.moe.gov.sa/", "icon": "fa-id-card"}
 ]
 
-# دالة ذكية تفحص كافة الامتدادات المحفوظة لملف الغياب لضمان عدم ضياع الرابط
 def load_absence_dataframe():
     possible_files = [
         os.path.join(BASE_DIR, "absence_data.xlsx"),
@@ -154,7 +153,8 @@ def find_trainer_pages(pdf_path, search_term):
     except Exception:
         return []
 
-# --- الواجهات العامة للطلاب ---
+# --- الواجهات العامة للمتدربين ---
+
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -389,16 +389,33 @@ def trainer_absence_view():
     if not session.get("trainer_id"):
         return redirect(url_for("trainer_login_page"))
 
+    emp_id = session.get("trainer_id")
     role = session.get("trainer_role")
+
     df_abs = load_absence_dataframe()
+    df_sec = load_so09_dataframe()
+
     departments = []
     courses = []
 
     if df_abs is not None and not df_abs.empty:
-        if 'اسم القسم' in df_abs.columns:
-            departments = sorted([d for d in df_abs['اسم القسم'].dropna().unique() if str(d).strip()])
-        if 'اسم المقرر' in df_abs.columns:
-            courses = sorted([c for c in df_abs['اسم المقرر'].dropna().unique() if str(c).strip()])
+        if role == "trainer":
+            if df_sec is not None and not df_sec.empty:
+                df_sec['emp_clean'] = df_sec['رقم الحاسب'].astype(str).apply(clean_employee_id)
+                matched_sec = df_sec[df_sec['emp_clean'] == emp_id]
+                assigned_sections = [str(x).strip() for x in matched_sec['رمز المقرر'].dropna().unique()]
+                
+                df_abs_copy = df_abs.copy()
+                df_abs_copy['sec_str'] = df_abs_copy['أرقام شعب المقرر'].astype(str).str.strip()
+                trainer_abs = df_abs_copy[df_abs_copy['sec_str'].isin(assigned_sections)]
+                
+                if 'اسم المقرر' in trainer_abs.columns:
+                    courses = sorted([c for c in trainer_abs['اسم المقرر'].dropna().unique() if str(c).strip()])
+        else:
+            if 'اسم القسم' in df_abs.columns:
+                departments = sorted([d for d in df_abs['اسم القسم'].dropna().unique() if str(d).strip()])
+            if 'اسم المقرر' in df_abs.columns:
+                courses = sorted([c for c in df_abs['اسم المقرر'].dropna().unique() if str(c).strip()])
 
     return render_template("trainer_absence_view.html",
                            trainer_name=session.get("trainer_name"),
@@ -432,7 +449,6 @@ def api_absence_records_query():
     filtered['rate'] = pd.to_numeric(filtered[rate_col], errors='coerce').fillna(0.0)
     filtered['hours'] = pd.to_numeric(filtered[hours_col], errors='coerce').fillna(0.0)
 
-    # التحقق من صلاحية المدرب الفردي
     trainer_role = session.get("trainer_role", "trainer")
     if is_trainer and not is_admin and trainer_role == "trainer":
         emp_id = session.get("trainer_id")
@@ -453,7 +469,6 @@ def api_absence_records_query():
     if dept_filter != "ALL" and 'اسم القسم' in filtered.columns:
         filtered = filtered[filtered['اسم القسم'] == dept_filter]
 
-    # استخراج المقررات المتاحة بعد فلترة القسم لتحديث القائمة المنسدلة
     available_courses = sorted([c for c in filtered['اسم المقرر'].dropna().unique() if str(c).strip()]) if 'اسم المقرر' in filtered.columns else []
 
     if course_filter != "ALL" and 'اسم المقرر' in filtered.columns:
@@ -554,7 +569,6 @@ def admin():
             file = request.files.get("absence_file")
             if file and (file.filename.endswith(".csv") or file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
                 ext = os.path.splitext(file.filename)[1]
-                # حفظ الامتداد الفعلي بدقة
                 save_path = os.path.join(BASE_DIR, f"absence_data{ext}")
                 file.save(save_path)
                 msg = "تم رفع وتحديث ملف نسب الغياب بنجاح!"
