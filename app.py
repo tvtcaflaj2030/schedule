@@ -15,8 +15,6 @@ ADMIN_PASSWORD = "turki2026"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEDULES_PDF = os.path.join(BASE_DIR, "schedules.pdf")
 TRAINERS_SCHEDULES_PDF = os.path.join(BASE_DIR, "trainers_schedules.pdf")
-ATTENDANCE_DATA_FILE = os.path.join(BASE_DIR, "absence_data.csv")
-SO09_DATA_FILE = os.path.join(BASE_DIR, "so09_data.csv")
 DB_PATH = os.path.join(BASE_DIR, "attendance_archive.db")
 
 def normalize_digits(text):
@@ -74,39 +72,52 @@ SERVICES_LIST = [
 ]
 
 TRAINER_SERVICES = [
-    {"title": "نظام رايات", "url": "https://tvtc.gov.sa/ar/Departments/tvtcdepartments/Rayat/pages/E-Services.aspx", "icon": "fa-chalkboard-user"},
+    {"title": "نظام رايات للمدربين", "url": "https://tvtc.gov.sa/ar/Departments/tvtcdepartments/Rayat/pages/default.aspx", "icon": "fa-chalkboard-user"},
     {"title": "منصة التدرب الإلكتروني (تقني)", "url": "https://tvtclms.edu.sa/?ref=saudiwins.com", "icon": "fa-laptop-code"},
-    {"title": "البريد الإلكتروني", "url": "https://outlook.office.com", "icon": "fa-envelope"},
-    {"title": "بوابة الموظفين", "url": "https://serv.tvtc.gov.sa/", "icon": "fa-id-card"}
+    {"title": "البريد الإلكتروني الوزاري", "url": "https://outlook.office.com", "icon": "fa-envelope"},
+    {"title": "الخدمات الذاتية للموظفين (فارس)", "url": "https://sshr.moe.gov.sa/", "icon": "fa-id-card"}
 ]
 
+# دالة ذكية تفحص كافة الامتدادات المحفوظة لملف الغياب لضمان عدم ضياع الرابط
 def load_absence_dataframe():
-    if not os.path.exists(ATTENDANCE_DATA_FILE):
-        return None
-    try:
-        if ATTENDANCE_DATA_FILE.endswith(('.xlsx', '.xls')):
-            return pd.read_excel(ATTENDANCE_DATA_FILE)
-        else:
+    possible_files = [
+        os.path.join(BASE_DIR, "absence_data.xlsx"),
+        os.path.join(BASE_DIR, "absence_data.xls"),
+        os.path.join(BASE_DIR, "absence_data.csv")
+    ]
+    for filepath in possible_files:
+        if os.path.exists(filepath):
             try:
-                return pd.read_csv(ATTENDANCE_DATA_FILE, encoding='utf-8')
-            except UnicodeDecodeError:
-                return pd.read_csv(ATTENDANCE_DATA_FILE, encoding='windows-1256')
-    except Exception:
-        return None
+                if filepath.endswith(('.xlsx', '.xls')):
+                    return pd.read_excel(filepath)
+                else:
+                    try:
+                        return pd.read_csv(filepath, encoding='utf-8')
+                    except UnicodeDecodeError:
+                        return pd.read_csv(filepath, encoding='windows-1256')
+            except Exception:
+                continue
+    return None
 
 def load_so09_dataframe():
-    if not os.path.exists(SO09_DATA_FILE):
-        return None
-    try:
-        if SO09_DATA_FILE.endswith(('.xlsx', '.xls')):
-            return pd.read_excel(SO09_DATA_FILE)
-        else:
+    possible_files = [
+        os.path.join(BASE_DIR, "so09_data.xlsx"),
+        os.path.join(BASE_DIR, "so09_data.xls"),
+        os.path.join(BASE_DIR, "so09_data.csv")
+    ]
+    for filepath in possible_files:
+        if os.path.exists(filepath):
             try:
-                return pd.read_csv(SO09_DATA_FILE, encoding='utf-8')
-            except UnicodeDecodeError:
-                return pd.read_csv(SO09_DATA_FILE, encoding='windows-1256')
-    except Exception:
-        return None
+                if filepath.endswith(('.xlsx', '.xls')):
+                    return pd.read_excel(filepath)
+                else:
+                    try:
+                        return pd.read_csv(filepath, encoding='utf-8')
+                    except UnicodeDecodeError:
+                        return pd.read_csv(filepath, encoding='windows-1256')
+            except Exception:
+                continue
+    return None
 
 def find_student_pages(pdf_path, trainee_id):
     clean_id = normalize_digits(trainee_id).strip()
@@ -329,7 +340,6 @@ def trainer_dashboard():
                            trainer_role=session.get("trainer_role"),
                            services=TRAINER_SERVICES)
 
-# مسار فتح جدول المدرب مباشرة كملف PDF
 @app.route("/trainer/my_schedule_pdf")
 def trainer_my_schedule_pdf():
     if not session.get("trainer_id"):
@@ -379,27 +389,22 @@ def trainer_absence_view():
     if not session.get("trainer_id"):
         return redirect(url_for("trainer_login_page"))
 
-    emp_id = session.get("trainer_id")
     role = session.get("trainer_role")
-
-    df_sec = load_so09_dataframe()
-    assigned_sections = []
-    if role == "trainer" and df_sec is not None and not df_sec.empty:
-        df_sec['emp_clean'] = df_sec['رقم الحاسب'].astype(str).apply(clean_employee_id)
-        matched = df_sec[df_sec['emp_clean'] == emp_id]
-        if not matched.empty:
-            assigned_sections = [str(x).strip() for x in matched['رمز المقرر'].dropna().unique()]
-
     df_abs = load_absence_dataframe()
     departments = []
-    if df_abs is not None and not df_abs.empty and 'اسم القسم' in df_abs.columns:
-        departments = sorted([d for d in df_abs['اسم القسم'].dropna().unique() if str(d).strip()])
+    courses = []
+
+    if df_abs is not None and not df_abs.empty:
+        if 'اسم القسم' in df_abs.columns:
+            departments = sorted([d for d in df_abs['اسم القسم'].dropna().unique() if str(d).strip()])
+        if 'اسم المقرر' in df_abs.columns:
+            courses = sorted([c for c in df_abs['اسم المقرر'].dropna().unique() if str(c).strip()])
 
     return render_template("trainer_absence_view.html",
                            trainer_name=session.get("trainer_name"),
                            trainer_role=role,
-                           assigned_sections=json.dumps(assigned_sections),
-                           departments=departments)
+                           departments=departments,
+                           courses=courses)
 
 @app.route("/trainer/logout")
 def trainer_logout():
@@ -408,19 +413,18 @@ def trainer_logout():
     session.pop("trainer_role", None)
     return redirect(url_for("trainer_login_page"))
 
-@app.route("/api/trainer_absence_data")
-def api_trainer_absence_data():
-    if not session.get("trainer_id"):
-        return jsonify({"success": False, "message": "غير مصرح"}), 403
+# API موحد ومحسن لفرز الكشوفات يدعم الأقسام والمقررات بدقة
+@app.route("/api/absence_records_query")
+def api_absence_records_query():
+    is_admin = session.get("logged_in", False)
+    is_trainer = session.get("trainer_id", None)
 
-    emp_id = session.get("trainer_id")
-    role = session.get("trainer_role")
-    dept_filter = request.args.get("department", "ALL")
-    status_filter = request.args.get("status", "ALL")
+    if not is_admin and not is_trainer:
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
 
     df = load_absence_dataframe()
     if df is None or df.empty:
-        return jsonify({"success": False, "records": [], "stats": {}})
+        return jsonify({"success": False, "records": [], "stats": {}, "courses": []})
 
     filtered = df.copy()
     rate_col = 'إجمالي نسبة الغياب بعذر وبدون عذر'
@@ -428,7 +432,10 @@ def api_trainer_absence_data():
     filtered['rate'] = pd.to_numeric(filtered[rate_col], errors='coerce').fillna(0.0)
     filtered['hours'] = pd.to_numeric(filtered[hours_col], errors='coerce').fillna(0.0)
 
-    if role == "trainer":
+    # التحقق من صلاحية المدرب الفردي
+    trainer_role = session.get("trainer_role", "trainer")
+    if is_trainer and not is_admin and trainer_role == "trainer":
+        emp_id = session.get("trainer_id")
         df_sec = load_so09_dataframe()
         if df_sec is not None and not df_sec.empty:
             df_sec['emp_clean'] = df_sec['رقم الحاسب'].astype(str).apply(clean_employee_id)
@@ -439,8 +446,18 @@ def api_trainer_absence_data():
         else:
             filtered = filtered.iloc[0:0]
 
-    if role == "manager" and dept_filter != "ALL":
+    dept_filter = request.args.get("department", "ALL")
+    course_filter = request.args.get("course", "ALL")
+    status_filter = request.args.get("status", "ALL")
+
+    if dept_filter != "ALL" and 'اسم القسم' in filtered.columns:
         filtered = filtered[filtered['اسم القسم'] == dept_filter]
+
+    # استخراج المقررات المتاحة بعد فلترة القسم لتحديث القائمة المنسدلة
+    available_courses = sorted([c for c in filtered['اسم المقرر'].dropna().unique() if str(c).strip()]) if 'اسم المقرر' in filtered.columns else []
+
+    if course_filter != "ALL" and 'اسم المقرر' in filtered.columns:
+        filtered = filtered[filtered['اسم المقرر'] == course_filter]
 
     total_records = len(filtered)
     danger_count = len(filtered[filtered['rate'] >= 20.0])
@@ -489,6 +506,7 @@ def api_trainer_absence_data():
     return jsonify({
         "success": True,
         "records": records,
+        "courses": available_courses,
         "stats": {
             "total": total_records,
             "danger": danger_count,
@@ -536,11 +554,10 @@ def admin():
             file = request.files.get("absence_file")
             if file and (file.filename.endswith(".csv") or file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
                 ext = os.path.splitext(file.filename)[1]
+                # حفظ الامتداد الفعلي بدقة
                 save_path = os.path.join(BASE_DIR, f"absence_data{ext}")
                 file.save(save_path)
-                global ATTENDANCE_DATA_FILE
-                ATTENDANCE_DATA_FILE = save_path
-                msg = "تم تحديث ملف نسب الغياب بنجاح!"
+                msg = "تم رفع وتحديث ملف نسب الغياب بنجاح!"
                 msg_type = "success"
 
         elif action == "upload_so09_file":
@@ -550,8 +567,6 @@ def admin():
                 ext = os.path.splitext(file.filename)[1]
                 save_path = os.path.join(BASE_DIR, f"so09_data{ext}")
                 file.save(save_path)
-                global SO09_DATA_FILE
-                SO09_DATA_FILE = save_path
                 df_sec = load_so09_dataframe()
                 if df_sec is not None and not df_sec.empty:
                     conn = sqlite3.connect(DB_PATH)
@@ -633,8 +648,18 @@ def absence_dashboard():
     if not session.get("logged_in"):
         return redirect(url_for("admin"))
     df = load_absence_dataframe()
-    departments = sorted([d for d in df['اسم القسم'].dropna().unique() if str(d).strip()]) if df is not None and not df.empty else []
-    return render_template("admin_absence_dashboard.html", has_data=df is not None and not df.empty, departments=departments)
+    departments = []
+    courses = []
+    if df is not None and not df.empty:
+        if 'اسم القسم' in df.columns:
+            departments = sorted([d for d in df['اسم القسم'].dropna().unique() if str(d).strip()])
+        if 'اسم المقرر' in df.columns:
+            courses = sorted([c for c in df['اسم المقرر'].dropna().unique() if str(c).strip()])
+
+    return render_template("admin_absence_dashboard.html",
+                           has_data=df is not None and not df.empty,
+                           departments=departments,
+                           courses=courses)
 
 @app.route('/admin/attendance')
 def attendance_tracker():
