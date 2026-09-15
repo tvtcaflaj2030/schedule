@@ -118,6 +118,24 @@ def load_so09_dataframe():
                 continue
     return None
 
+def get_trainer_sections(emp_id):
+    """استخراج قائمة الشعب المسندة للمدرب من واقع ملف SO09"""
+    df_sec = load_so09_dataframe()
+    if df_sec is None or df_sec.empty:
+        return []
+    clean_target = clean_employee_id(emp_id)
+    df_sec['emp_clean'] = df_sec['رقم الحاسب'].astype(str).apply(clean_employee_id)
+    matched = df_sec[df_sec['emp_clean'] == clean_target]
+    if matched.empty:
+        return []
+    # تحويل الشعب إلى نصوص خالية من الأصفار والكسور
+    sections = []
+    for s in matched['رمز المقرر'].dropna():
+        s_str = str(s).split('.')[0].strip()
+        if s_str:
+            sections.append(s_str)
+    return list(set(sections))
+
 def find_student_pages(pdf_path, trainee_id):
     clean_id = normalize_digits(trainee_id).strip()
     if len(clean_id) < 9 or not clean_id.isdigit():
@@ -153,8 +171,7 @@ def find_trainer_pages(pdf_path, search_term):
     except Exception:
         return []
 
-# --- الواجهات العامة للمتدربين ---
-
+# --- الواجهات العامة للطلاب ---
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -393,24 +410,18 @@ def trainer_absence_view():
     role = session.get("trainer_role")
 
     df_abs = load_absence_dataframe()
-    df_sec = load_so09_dataframe()
-
     departments = []
     courses = []
 
     if df_abs is not None and not df_abs.empty:
         if role == "trainer":
-            if df_sec is not None and not df_sec.empty:
-                df_sec['emp_clean'] = df_sec['رقم الحاسب'].astype(str).apply(clean_employee_id)
-                matched_sec = df_sec[df_sec['emp_clean'] == emp_id]
-                assigned_sections = [str(x).strip() for x in matched_sec['رمز المقرر'].dropna().unique()]
-                
+            assigned_sections = get_trainer_sections(emp_id)
+            if assigned_sections:
                 df_abs_copy = df_abs.copy()
-                df_abs_copy['sec_str'] = df_abs_copy['أرقام شعب المقرر'].astype(str).str.strip()
-                trainer_abs = df_abs_copy[df_abs_copy['sec_str'].isin(assigned_sections)]
-                
-                if 'اسم المقرر' in trainer_abs.columns:
-                    courses = sorted([c for c in trainer_abs['اسم المقرر'].dropna().unique() if str(c).strip()])
+                df_abs_copy['sec_clean'] = df_abs_copy['أرقام شعب المقرر'].astype(str).apply(lambda x: str(x).split('.')[0].strip())
+                trainer_records = df_abs_copy[df_abs_copy['sec_clean'].isin(assigned_sections)]
+                if 'اسم المقرر' in trainer_records.columns:
+                    courses = sorted([c for c in trainer_records['اسم المقرر'].dropna().unique() if str(c).strip()])
         else:
             if 'اسم القسم' in df_abs.columns:
                 departments = sorted([d for d in df_abs['اسم القسم'].dropna().unique() if str(d).strip()])
@@ -430,13 +441,20 @@ def trainer_logout():
     session.pop("trainer_role", None)
     return redirect(url_for("trainer_login_page"))
 
-# API موحد ومحسن لفرز الكشوفات يدعم الأقسام والمقررات بدقة
+# API موحد ومحكم للفصل التام بين المدرب والأدمن
 @app.route("/api/absence_records_query")
 def api_absence_records_query():
+    # التحقق من مصدر الطلب
+    source = request.args.get("source", "") # 'trainer' or 'admin'
     is_admin = session.get("logged_in", False)
-    is_trainer = session.get("trainer_id", None)
+    trainer_id = session.get("trainer_id", None)
+    trainer_role = session.get("trainer_role", "trainer")
 
-    if not is_admin and not is_trainer:
+    if source == "trainer" and not trainer_id:
+        return jsonify({"success": False, "message": "غير مصرح للمدرب"}), 403
+    elif source == "admin" and not is_admin:
+        return jsonify({"success": False, "message": "غير مصرح للإدارة"}), 403
+    elif not is_admin and not trainer_id:
         return jsonify({"success": False, "message": "غير مصرح"}), 403
 
     df = load_absence_dataframe()
@@ -449,18 +467,14 @@ def api_absence_records_query():
     filtered['rate'] = pd.to_numeric(filtered[rate_col], errors='coerce').fillna(0.0)
     filtered['hours'] = pd.to_numeric(filtered[hours_col], errors='coerce').fillna(0.0)
 
-    trainer_role = session.get("trainer_role", "trainer")
-    if is_trainer and not is_admin and trainer_role == "trainer":
-        emp_id = session.get("trainer_id")
-        df_sec = load_so09_dataframe()
-        if df_sec is not None and not df_sec.empty:
-            df_sec['emp_clean'] = df_sec['رقم الحاسب'].astype(str).apply(clean_employee_id)
-            matched = df_sec[df_sec['emp_clean'] == emp_id]
-            assigned_sections = [str(x).strip() for x in matched['رمز المقرر'].dropna().unique()]
-            filtered['sec_str'] = filtered['أرقام شعب المقرر'].astype(str).str.strip()
-            filtered = filtered[filtered['sec_str'].isin(assigned_sections)]
+    # إذا كان الطلب من بوابة المدرب وكان المدرب برتبة trainer عادية
+    if source == "trainer" and trainer_role == "trainer":
+        assigned_sections = get_trainer_sections(trainer_id)
+        if assigned_sections:
+            filtered['sec_clean'] = filtered['أرقام شعب المقرر'].astype(str).apply(lambda x: str(x).split('.')[0].strip())
+            filtered = filtered[filtered['sec_clean'].isin(assigned_sections)]
         else:
-            filtered = filtered.iloc[0:0]
+            filtered = filtered.iloc[0:0] # لا توجد شعب مسندة في SO09
 
     dept_filter = request.args.get("department", "ALL")
     course_filter = request.args.get("course", "ALL")
@@ -469,6 +483,7 @@ def api_absence_records_query():
     if dept_filter != "ALL" and 'اسم القسم' in filtered.columns:
         filtered = filtered[filtered['اسم القسم'] == dept_filter]
 
+    # استخراج قائمة المقررات التابعة لهذا النطاق فقط
     available_courses = sorted([c for c in filtered['اسم المقرر'].dropna().unique() if str(c).strip()]) if 'اسم المقرر' in filtered.columns else []
 
     if course_filter != "ALL" and 'اسم المقرر' in filtered.columns:
