@@ -28,7 +28,7 @@
                 </a>
                 <div>
                     <h1 class="font-black text-sm sm:text-base text-slate-800">لوحة فرز كشوفات الغياب والإنذارات</h1>
-                    <p class="text-[11px] text-slate-400">متابعة الطلاب المهددين بالحرمان واستخراج القوائم</p>
+                    <p class="text-[11px] text-slate-400">متابعة الطلاب المهددين بالحرمان وتصفية المقررات</p>
                 </div>
             </div>
 
@@ -51,7 +51,7 @@
                 <i class="fa-solid fa-folder-open"></i>
             </div>
             <h3 class="text-base font-bold text-slate-700">لم يتم رفع ملف نسب الغياب بعد</h3>
-            <p class="text-xs text-slate-400 max-w-sm mx-auto">يرجى الذهاب إلى لوحة الإدارة الرئيسية ورفع ملف الغياب (CSV أو Excel) المستخرج من رايات للبدء في الفرز الفوري.</p>
+            <p class="text-xs text-slate-400 max-w-sm mx-auto">يرجى رفع ملف الغياب (CSV أو Excel) من لوحة الإدارة لبدء الفرز الفوري للطلاب.</p>
             <a href="/admin" class="inline-block px-5 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs rounded-xl shadow">الذهاب لرفع الملف</a>
         </div>
         {% else %}
@@ -74,7 +74,7 @@
             </div>
         </div>
 
-        <!-- العدادات الإحصائية الأربعة -->
+        <!-- العدادات الإحصائية -->
         <section class="grid grid-cols-2 md:grid-cols-4 gap-4 no-print">
             <div class="bg-white p-4 rounded-2xl border-r-4 border-rose-600 border border-slate-200 shadow-sm">
                 <p class="text-[11px] text-slate-400 font-bold">المحرومون (20%+)</p>
@@ -94,13 +94,13 @@
             </div>
         </section>
 
-        <!-- شريط الفلاتر والبحث -->
+        <!-- شريط الفلاتر المحدث: إضافة فلتر المادة (المقرر) -->
         <section class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3 no-print">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <!-- فلتر القسم -->
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">تحديد القسم التدريبي:</label>
-                    <select id="filter-department" onchange="fetchFilteredData()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">القسم التدريبي:</label>
+                    <select id="filter-department" onchange="fetchFilteredData(true)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
                         <option value="ALL">كافة الأقسام التدريبية</option>
                         {% for d in departments %}
                         <option value="{{ d }}">{{ d }}</option>
@@ -108,10 +108,21 @@
                     </select>
                 </div>
 
-                <!-- فلتر الحالة ونسبة الغياب -->
+                <!-- فلتر اسم المادة (المقرر) الجديد -->
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">تصفية نسبة الغياب (الخطر):</label>
-                    <select id="filter-status" onchange="fetchFilteredData()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">اسم المادة (المقرر):</label>
+                    <select id="filter-course" onchange="fetchFilteredData(false)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                        <option value="ALL">كافة المقررات التدريبية</option>
+                        {% for c in courses %}
+                        <option value="{{ c }}">{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- فلتر نسبة الغياب والإنذار -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">فئة نسبة الغياب:</label>
+                    <select id="filter-status" onchange="fetchFilteredData(false)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
                         <option value="ALL">عرض جميع الحالات المسجلة</option>
                         <option value="danger">المحرومين فقط (20% فأكثر)</option>
                         <option value="warn2">الإنذار الثاني فقط (15% - 19.99%)</option>
@@ -120,10 +131,10 @@
                     </select>
                 </div>
 
-                <!-- خانة البحث السريع -->
+                <!-- البحث المباشر -->
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">بحث سريع:</label>
-                    <input type="text" id="filter-search" oninput="clientSideSearch()" placeholder="بحث بالاسم، الرقم، المقرر..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                    <input type="text" id="filter-search" oninput="clientSideSearch()" placeholder="اسم المتدرب، الرقم، المقرر..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
                 </div>
             </div>
         </section>
@@ -163,26 +174,42 @@
 
         let cachedRecords = [];
 
-        async function fetchFilteredData() {
+        async function fetchFilteredData(updateCoursesList = false) {
             const dept = document.getElementById('filter-department').value;
+            const courseSelect = document.getElementById('filter-course');
+            const course = courseSelect.value;
             const status = document.getElementById('filter-status').value;
             const tbody = document.getElementById('records-tbody');
 
             tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold"><i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري استرجاع وفرز الكشف...</td></tr>';
 
             try {
-                const res = await fetch(`/admin/api/absence_records?department=${encodeURIComponent(dept)}&status=${status}`);
+                const res = await fetch(`/api/absence_records_query?department=${encodeURIComponent(dept)}&course=${encodeURIComponent(course)}&status=${status}`);
                 const data = await res.json();
 
                 if (data.success) {
                     cachedRecords = data.records;
 
-                    // تحديث العدادات
                     document.getElementById('stat-danger').textContent = data.stats.danger;
                     document.getElementById('stat-warn2').textContent = data.stats.warn2;
                     document.getElementById('stat-warn1').textContent = data.stats.warn1;
                     document.getElementById('stat-safe').textContent = data.stats.safe;
                     document.getElementById('records-count-badge').textContent = data.records.length;
+
+                    // تحديث قائمة المواد إذا تم تغيير القسم
+                    if (updateCoursesList && data.courses) {
+                        const currentVal = courseSelect.value;
+                        courseSelect.innerHTML = '<option value="ALL">كافة المقررات التدريبية</option>';
+                        data.courses.forEach(c => {
+                            const opt = document.createElement('option');
+                            opt.value = c;
+                            opt.textContent = c;
+                            courseSelect.appendChild(opt);
+                        });
+                        if (data.courses.includes(currentVal)) {
+                            courseSelect.value = currentVal;
+                        }
+                    }
 
                     renderTable(data.records);
                 }
@@ -249,32 +276,25 @@
             renderTable(filtered);
         }
 
-        // تصدير الكشف المعروض إلى ملف CSV / Excel متوافق مع الحروف العربية
         function exportTableToExcel() {
             if (!cachedRecords || cachedRecords.length === 0) {
                 alert("لا توجد بيانات لتصديرها.");
                 return;
             }
 
-            let csvContent = "\uFEFF"; // لدعم اللغة العربية في Excel بدون لخبطة
-            csvContent += "الرقم التدريبي,اسم المتدرب,القسم,اسم المقرر,الشعبة,ساعات الغياب,نسبة الغياب,الحالة\n";
-
+            let csvContent = "\uFEFFالرقم التدريبي,اسم المتدرب,القسم,اسم المقرر,الشعبة,ساعات الغياب,نسبة الغياب,الحالة\n";
             cachedRecords.forEach(r => {
                 csvContent += `"${r.trainee_id}","${r.trainee_name}","${r.department}","${r.course_name}","${r.section_no}","${r.absence_hours}","${r.absence_rate}%","${r.status_text}"\n`;
             });
 
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", `كشف_الإنذارات_والغياب_${new Date().toISOString().slice(0,10)}.csv`);
-            document.body.appendChild(link);
+            link.href = URL.createObjectURL(blob);
+            link.download = `كشف_الإنذارات_والغياب_${new Date().toISOString().slice(0,10)}.csv`;
             link.click();
-            document.body.removeChild(link);
         }
 
-        // تشغيل الجلب التلقائي عند فتح الصفحة
-        window.addEventListener('DOMContentLoaded', fetchFilteredData);
+        window.addEventListener('DOMContentLoaded', () => fetchFilteredData(false));
     </script>
 </body>
 </html>
