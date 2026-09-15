@@ -89,7 +89,7 @@
                 </div>
                 {% endif %}
 
-                <!-- فلتر اسم المقرر: يقتصر على مقررات المدرب فقط -->
+                <!-- فلتر اسم المقرر التدريبي -->
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">اسم المقرر:</label>
                     <select id="filter-course" onchange="fetchData(false)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
@@ -160,7 +160,8 @@
             tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold"><i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري استرجاع الكشف...</td></tr>';
 
             try {
-                const res = await fetch(`/api/absence_records_query?department=${encodeURIComponent(dept)}&course=${encodeURIComponent(course)}&status=${status}`);
+                // إرسال source=trainer لعزل صلاحيات المدرب تماماً عن أي جلسة أدمن مفتوحة
+                const res = await fetch(`/api/absence_records_query?source=trainer&department=${encodeURIComponent(dept)}&course=${encodeURIComponent(course)}&status=${status}`);
                 const data = await res.json();
 
                 if (data.success) {
@@ -171,7 +172,6 @@
                     document.getElementById('stat-safe').textContent = data.stats.safe;
                     document.getElementById('records-count-badge').textContent = data.records.length;
 
-                    // تحديث قائمة المقررات لتقتصر على النتائج المتاحة لنطاق المدرب
                     if (updateCourses && courseSelect && data.courses) {
                         const currentVal = courseSelect.value;
                         const defaultText = '{{ "كافة المقررات" if trainer_role == "manager" else "كافة مقرراتي التدريبية" }}';
@@ -199,7 +199,7 @@
             tbody.innerHTML = '';
 
             if (records.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold">لا توجد سجلات مطابقة في نطاقك التدريبي.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold">لا توجد سجلات مطابقة في نطاقك التدريبي. تأكد من رفع ملف الشعب (SO09) لربط شعبك التدريبية.</td></tr>';
                 return;
             }
 
@@ -267,7 +267,6 @@
             link.click();
         }
 
-        // تمرير true لتحديث قائمة المواد فور التحميل بما يتوافق مع المدرب
         window.addEventListener('DOMContentLoaded', () => fetchData(true));
     </script>
 </body>
