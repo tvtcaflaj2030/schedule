@@ -28,7 +28,7 @@
                 </a>
                 <div>
                     <h1 class="font-black text-sm sm:text-base text-slate-800">لوحة فرز كشوفات الغياب والإنذارات</h1>
-                    <p class="text-[11px] text-slate-400">متابعة الطلاب المهددين بالحرمان وتصفية المقررات</p>
+                    <p class="text-[11px] text-slate-400">متابعة الطلاب المهددين بالحرمان وتصفية المقررات (صلاحية الإدارة الشاملة)</p>
                 </div>
             </div>
 
@@ -94,7 +94,7 @@
             </div>
         </section>
 
-        <!-- شريط الفلاتر المحدث: إضافة فلتر المادة (المقرر) -->
+        <!-- شريط الفلاتر المحدث -->
         <section class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3 no-print">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <!-- فلتر القسم -->
@@ -108,7 +108,7 @@
                     </select>
                 </div>
 
-                <!-- فلتر اسم المادة (المقرر) الجديد -->
+                <!-- فلتر اسم المادة (المقرر) -->
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">اسم المادة (المقرر):</label>
                     <select id="filter-course" onchange="fetchFilteredData(false)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
@@ -177,14 +177,15 @@
         async function fetchFilteredData(updateCoursesList = false) {
             const dept = document.getElementById('filter-department').value;
             const courseSelect = document.getElementById('filter-course');
-            const course = courseSelect.value;
+            const course = courseSelect ? courseSelect.value : 'ALL';
             const status = document.getElementById('filter-status').value;
             const tbody = document.getElementById('records-tbody');
 
             tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold"><i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري استرجاع وفرز الكشف...</td></tr>';
 
             try {
-                const res = await fetch(`/api/absence_records_query?department=${encodeURIComponent(dept)}&course=${encodeURIComponent(course)}&status=${status}`);
+                // إرسال source=admin لضمان استرجاع كافة السجلات بصلاحية الإدارة الشاملة
+                const res = await fetch(`/api/absence_records_query?source=admin&department=${encodeURIComponent(dept)}&course=${encodeURIComponent(course)}&status=${status}`);
                 const data = await res.json();
 
                 if (data.success) {
@@ -197,7 +198,7 @@
                     document.getElementById('records-count-badge').textContent = data.records.length;
 
                     // تحديث قائمة المواد إذا تم تغيير القسم
-                    if (updateCoursesList && data.courses) {
+                    if (updateCoursesList && data.courses && courseSelect) {
                         const currentVal = courseSelect.value;
                         courseSelect.innerHTML = '<option value="ALL">كافة المقررات التدريبية</option>';
                         data.courses.forEach(c => {
