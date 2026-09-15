@@ -67,13 +67,13 @@
             </div>
         </section>
 
-        <!-- شريط التصفية -->
+        <!-- شريط التصفية المحدث مع فلتر المقررات -->
         <section class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3 no-print">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {% if trainer_role == 'manager' %}
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">تحديد القسم التدريبي:</label>
-                    <select id="filter-department" onchange="fetchData()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">القسم التدريبي:</label>
+                    <select id="filter-department" onchange="fetchData(true)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
                         <option value="ALL">كافة الأقسام التدريبية</option>
                         {% for d in departments %}
                         <option value="{{ d }}">{{ d }}</option>
@@ -89,9 +89,20 @@
                 </div>
                 {% endif %}
 
+                <!-- فلتر اسم المقرر التدريبي -->
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">تصفية نسبة الغياب (الخطر):</label>
-                    <select id="filter-status" onchange="fetchData()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">اسم المقرر:</label>
+                    <select id="filter-course" onchange="fetchData(false)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                        <option value="ALL">كافة المقررات</option>
+                        {% for c in courses %}
+                        <option value="{{ c }}">{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">فئة نسبة الغياب:</label>
+                    <select id="filter-status" onchange="fetchData(false)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
                         <option value="ALL">عرض جميع الحالات المسجلة</option>
                         <option value="danger">المحرومين فقط (20% فأكثر)</option>
                         <option value="warn2">الإنذار الثاني فقط (15% - 19.99%)</option>
@@ -102,7 +113,7 @@
 
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">بحث سريع:</label>
-                    <input type="text" id="filter-search" oninput="clientSearch()" placeholder="بحث باسم المتدرب، الرقم، المقرر..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                    <input type="text" id="filter-search" oninput="clientSearch()" placeholder="اسم المتدرب، الرقم، المقرر..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
                 </div>
             </div>
         </section>
@@ -138,16 +149,18 @@
     <script>
         let cachedData = [];
 
-        async function fetchData() {
+        async function fetchData(updateCourses = false) {
             const deptEl = document.getElementById('filter-department');
             const dept = deptEl ? deptEl.value : 'ALL';
+            const courseSelect = document.getElementById('filter-course');
+            const course = courseSelect ? courseSelect.value : 'ALL';
             const status = document.getElementById('filter-status').value;
             const tbody = document.getElementById('records-tbody');
 
             tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold"><i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري استرجاع الكشف...</td></tr>';
 
             try {
-                const res = await fetch(`/api/trainer_absence_data?department=${encodeURIComponent(dept)}&status=${status}`);
+                const res = await fetch(`/api/absence_records_query?department=${encodeURIComponent(dept)}&course=${encodeURIComponent(course)}&status=${status}`);
                 const data = await res.json();
 
                 if (data.success) {
@@ -157,6 +170,20 @@
                     document.getElementById('stat-warn1').textContent = data.stats.warn1;
                     document.getElementById('stat-safe').textContent = data.stats.safe;
                     document.getElementById('records-count-badge').textContent = data.records.length;
+
+                    if (updateCourses && courseSelect && data.courses) {
+                        const currentVal = courseSelect.value;
+                        courseSelect.innerHTML = '<option value="ALL">كافة المقررات</option>';
+                        data.courses.forEach(c => {
+                            const opt = document.createElement('option');
+                            opt.value = c;
+                            opt.textContent = c;
+                            courseSelect.appendChild(opt);
+                        });
+                        if (data.courses.includes(currentVal)) {
+                            courseSelect.value = currentVal;
+                        }
+                    }
 
                     renderTable(data.records);
                 }
@@ -238,7 +265,7 @@
             link.click();
         }
 
-        window.addEventListener('DOMContentLoaded', fetchData);
+        window.addEventListener('DOMContentLoaded', () => fetchData(false));
     </script>
 </body>
 </html>
