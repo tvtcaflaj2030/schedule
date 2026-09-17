@@ -66,7 +66,7 @@ SERVICES_LIST = [
     {"title": "الخدمات الذاتية للمتدربين (رايات)", "url": "https://tvtc.gov.sa/ar/Departments/tvtcdepartments/Rayat/pages/E-Services.aspx", "icon": "fa-user-gear"},
     {"title": "شرح اضافة الايبان", "url": "https://youtu.be/rTF7pRETF2A?si=4x6fBDz-oXKRSxKp", "icon": "fa-money-bill-transfer"},
     {"title": "عرض جدول المتدرب", "url": "/schedule", "icon": "fa-table-cells"},
-    {"title": "طلب شهادة تعريف", "url": "https://tvtc.gov.sa/ar/Training-Units/Boys-Colleges/AQTC/Documents/%D8%A3%D8%AF%D9%84%D8%A9%20%D8%AE%D8%A7%D8%B5%D8%A9%20%D9%84%D9%84%D9%85%D8%AA%D8%AF%D8%B1%D8%A8%D9%8A%D9%86/%D8%A3%D8%AF%D9%84%D8%A9%20%D8%A8%D9%88%D8%A7%D8%A8%D8%A9%20%D8%B1%D8%A7%D9%8A%D8%AA%20%D9%84%D9%84%D9%85%D8%AA%D8%AF%D8%B1%D8%A8/%D8%AF%D9%84%D9%8A%D9%84%20%D8%B7%D9%84%D8%A8%20%D8%B4%D9%87%D8%A7%D8%AF%D8%A9%20%D8%A7%D9%84%D8%AA%D8%B9%D8%B1%D9%8A%D9%81%20%D8%B9%D9%86%20%D8%B7%D8%B1%D9%8A%D9%82%20%D8%B1%D8%A7%D9%8A%D8%AA.pdf", "icon": "fa-file-lines"},
+    {"title": "طلب شهادة تعريف", "url": "https://mttvtcedu-my.sharepoint.com/:b:/g/personal/turki_a4_tvtc_gov_sa/IQA2Gb2Q9NNZTq_Hx5qOJWYkAUlCJmtt6aUFNpaymdYv9Mc?e=bUxwJd", "icon": "fa-file-lines"},
     {"title": "التدرب عن بعد (تقني)", "url": "https://tvtclms.edu.sa/?ref=saudiwins.com", "icon": "fa-laptop-code"},
     {"title": "البريد الإلكتروني", "url": "https://outlook.office.com", "icon": "fa-envelope"}
 ]
