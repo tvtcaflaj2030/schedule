@@ -167,7 +167,8 @@
 
                     if (data.max_rate >= 20.0) {
                         banner.className = "p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3 bg-rose-50 text-rose-900 border border-rose-200";
-                        banner.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-lg text-rose-600"></i><span>تنبيه نظامي حرج: لقد بلغت نسبة الحرمان (20% فأكثر) في مقرر أو أكثر، وتعتبر محروماً من الاختبار النهائي . يرجى مراجعة إدارة شؤون المتدربين فوراً.</span>';
+                        banner.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-lg text-rose-600"></i><span>تنبيه 
+                            حرج: لقد بلغت نسبة الحرمان (20% فأكثر) في مقرر أو أكثر، وتعتبر محروماً من الاختبار النهائي . يرجى مراجعة إدارة شؤون المتدربين فوراً.</span>';
                         overallBadge.className = "px-4 py-1.5 rounded-xl text-xs font-black bg-rose-100 text-rose-900 border border-rose-200";
                         overallBadge.textContent = "حالة حرمان";
                     } else if (data.max_rate >= 15.0) {
