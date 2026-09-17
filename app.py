@@ -229,7 +229,7 @@ def search_absence():
             max_rate = rate
 
         if rate >= 20.0:
-            status_text = "محروم نظاماً"
+            status_text = "محروم"
             status_color = "danger"
         elif rate >= 15.0:
             status_text = "إنذار ثانٍ (خطر حرمان)"
