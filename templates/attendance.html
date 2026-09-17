@@ -47,7 +47,7 @@
 
             <form id="absence-form" class="max-w-md mx-auto space-y-3 pt-2">
                 <div class="relative">
-                    <input type="text" id="trainee-id-input" maxlength="9" placeholder="أدخل الرقم التدريبي (مثال: *****44)" required
+                    <input type="text" id="trainee-id-input" maxlength="9" placeholder="أدخل الرقم التدريبي (مثال: 444156949)" required
                         class="w-full bg-slate-50 border-2 border-slate-200 hover:border-emerald-600 focus:border-emerald-700 rounded-2xl px-5 py-3 text-center text-base font-extrabold text-slate-800 tracking-wider focus:outline-none transition-all shadow-inner">
                 </div>
                 <button type="submit" id="btn-submit" class="w-full py-3 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2">
@@ -75,7 +75,7 @@
             </div>
             <div class="p-2.5 rounded-2xl bg-rose-50 text-rose-900 border border-rose-200">
                 <span class="block text-xs font-black">20% فأكثر</span>
-                <span>حرمان</span>
+                <span>حرمان نظامي</span>
             </div>
         </div>
 
@@ -167,10 +167,9 @@
 
                     if (data.max_rate >= 20.0) {
                         banner.className = "p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3 bg-rose-50 text-rose-900 border border-rose-200";
-                        banner.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-lg text-rose-600"></i><span>تنبيه 
-                            حرج: لقد بلغت نسبة الحرمان (20% فأكثر) في مقرر أو أكثر، وتعتبر محروماً من الاختبار النهائي . يرجى مراجعة إدارة شؤون المتدربين فوراً.</span>';
+                        banner.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-lg text-rose-600"></i><span>تنبيه نظامي حرج: لقد بلغت نسبة الحرمان (20% فأكثر) في مقرر أو أكثر، وتعتبر محروماً من الاختبار النهائي نظاماً. يرجى مراجعة إدارة شؤون المتدربين فوراً.</span>';
                         overallBadge.className = "px-4 py-1.5 rounded-xl text-xs font-black bg-rose-100 text-rose-900 border border-rose-200";
-                        overallBadge.textContent = "حالة حرمان";
+                        overallBadge.textContent = "حالة حرمان نظامي";
                     } else if (data.max_rate >= 15.0) {
                         banner.className = "p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3 bg-orange-50 text-orange-950 border border-orange-200";
                         banner.innerHTML = '<i class="fa-solid fa-circle-exclamation text-lg text-orange-600"></i><span>تحذير شديد (إنذار ثانٍ): أنت قريب جداً من الحرمان النهائي (بلغت 15% أو أكثر)، احرص على عدم تفويت أي ساعة قادمة وراجع المرشد التدريبي.</span>';
@@ -236,8 +235,5 @@
             }
         });
     </script>
-
-<div style="position: fixed; bottom: 10px; left: 15px; font-size: 10px; font-weight: bold; color: #a0aec0; direction: ltr; font-family: monospace; z-index: 9999; pointer-events: none; opacity: 0.85;">
-     Powered by ENG.TURKI
 </body>
 </html>
