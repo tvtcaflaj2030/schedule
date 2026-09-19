@@ -10,36 +10,49 @@
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
         body { font-family: 'Cairo', sans-serif; }
 
-        /* ضبط قواعد الطباعة بدقة لاستعادة شكل الكشف السابق */
+        /* إعادة ضبط إعدادات الطباعة للوضع الأصلي السليم */
         @media print {
-            .no-print { display: none !important; }
+            @page {
+                size: A4 landscape; /* فرض الطباعة بالعرض لتتسع الأعمدة الثمانية بالكامل */
+                margin: 8mm;
+            }
+            .no-print { 
+                display: none !important; 
+            }
             body { 
                 background: #ffffff !important; 
+                color: #000000 !important;
                 margin: 0 !important; 
-                padding: 10mm !important;
+                padding: 0 !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
             .overflow-x-auto { 
                 overflow: visible !important; 
+                display: block !important;
             }
             table { 
                 width: 100% !important; 
                 border-collapse: collapse !important; 
-                font-size: 8.5pt !important;
+                table-layout: auto !important;
+                font-size: 9pt !important;
             }
             th, td { 
-                border: 1px solid #94a3b8 !important; 
-                padding: 4px 6px !important; 
+                border: 1px solid #64748b !important; 
+                padding: 5px 4px !important; 
                 text-align: center !important;
             }
             th { 
                 background-color: #f1f5f9 !important; 
                 color: #0f172a !important;
-                font-weight: 800 !important;
+                font-weight: bold !important;
             }
-            thead { display: table-header-group !important; }
-            tr { page-break-inside: avoid !important; }
+            thead { 
+                display: table-header-group !important; 
+            }
+            tr { 
+                page-break-inside: avoid !important; 
+            }
         }
     </style>
 </head>
@@ -188,14 +201,14 @@
                 <table id="absence-table" class="w-full text-right text-xs">
                     <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                         <tr>
-                            <th class="p-3 text-center print:w-[11%]">الرقم التدريبي</th>
-                            <th class="p-3 print:w-[20%]">اسم المتدرب</th>
-                            <th class="p-3 print:w-[17%]">القسم</th>
-                            <th class="p-3 print:w-[20%]">اسم المقرر</th>
+                            <th class="p-3 text-center print:w-[12%]">الرقم التدريبي</th>
+                            <th class="p-3 print:w-[18%]">اسم المتدرب</th>
+                            <th class="p-3 print:w-[16%]">القسم</th>
+                            <th class="p-3 print:w-[18%]">اسم المقرر</th>
                             <th class="p-3 text-center print:w-[8%]">الشعبة</th>
                             <th class="p-3 text-center print:w-[8%]">ساعات الغياب</th>
                             <th class="p-3 text-center print:w-[8%]">نسبة الغياب</th>
-                            <th class="p-3 text-center print:w-[8%]">الإجراء والحالة</th>
+                            <th class="p-3 text-center print:w-[12%]">الإجراء والحالة</th>
                         </tr>
                     </thead>
                     <tbody id="records-tbody" class="divide-y divide-slate-100 font-medium"></tbody>
