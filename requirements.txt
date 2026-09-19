@@ -3,3 +3,6 @@ PyMuPDF
 pandas
 openpyxl
 gunicorn
+reportlab
+python-bidi
+arabic-reshaper
