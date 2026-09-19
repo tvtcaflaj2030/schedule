@@ -169,7 +169,7 @@ def find_trainer_pages(pdf_path, search_term):
     except Exception:
         return []
 
-# --- الواجهات العامة للطلاب ---
+# --- الواجهات العامة للمتدربين ---
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -215,11 +215,15 @@ def search_absence():
         raw_rate = row.get('إجمالي نسبة الغياب بعذر وبدون عذر', 0)
         raw_hours = row.get('إجمالي ساعات الغياب بعذر وبدون عذر', 0)
         
-        try: rate = float(raw_rate)
-        except: rate = 0.0
+        try:
+            rate = float(raw_rate)
+        except (ValueError, TypeError):
+            rate = 0.0
             
-        try: hours = float(raw_hours)
-        except: hours = 0.0
+        try:
+            hours = float(raw_hours)
+        except (ValueError, TypeError):
+            hours = 0.0
 
         if rate > max_rate:
             max_rate = rate
@@ -435,7 +439,7 @@ def trainer_logout():
     session.pop("trainer_role", None)
     return redirect(url_for("trainer_login_page"))
 
-# API موحد ومحسن
+# API موحد ومحسن لفرز الكشوفات وحساب المتدربين بدقة
 @app.route("/api/absence_records_query")
 def api_absence_records_query():
     source = request.args.get("source", "")
@@ -543,18 +547,7 @@ def api_absence_records_query():
         }
     })
 
-# --- صفحة طباعة نماذج التعهدات الخطية المستقلة ---
-@app.route("/print_pledges", methods=["POST"])
-def print_pledges():
-    # يستقبل بيانات المتدربين المفلترة ويولد صفحات A4 مستقلة للتعهدات
-    try:
-        pledges_data = request.form.get("pledges_data", "[]")
-        students = json.loads(pledges_data)
-    except:
-        students = []
-    return render_template("print_pledges.html", students=students)
-
-# --- لوحة الإدارة الرئيسية ---
+# --- لوحة الإدارة الرئيسية مع مسارات الحذف ---
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -592,6 +585,7 @@ def admin():
             file = request.files.get("absence_file")
             if file and (file.filename.endswith(".csv") or file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
                 ext = os.path.splitext(file.filename)[1]
+                # حذف أي صيغة قديمة لملف الغياب أولاً
                 for old_ext in ['.xlsx', '.xls', '.csv']:
                     old_path = os.path.join(BASE_DIR, f"absence_data{old_ext}")
                     if os.path.exists(old_path):
@@ -642,6 +636,7 @@ def admin():
                            msg=msg, 
                            msg_type=msg_type)
 
+# مسار مخصص لحذف وتصفير أي ملف مرفوع بضغطة زر
 @app.route("/admin/delete_file/<file_type>", methods=["POST"])
 def admin_delete_file(file_type):
     if not session.get("logged_in"):
