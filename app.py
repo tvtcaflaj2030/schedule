@@ -66,7 +66,7 @@ SERVICES_LIST = [
     {"title": "الخدمات الذاتية للمتدربين (رايات)", "url": "https://tvtc.gov.sa/ar/Departments/tvtcdepartments/Rayat/pages/E-Services.aspx", "icon": "fa-user-gear"},
     {"title": "شرح اضافة الايبان", "url": "https://youtu.be/rTF7pRETF2A?si=4x6fBDz-oXKRSxKp", "icon": "fa-money-bill-transfer"},
     {"title": "عرض جدول المتدرب", "url": "/schedule", "icon": "fa-table-cells"},
-    {"title": "طلب شهادة تعريف", "url": "https://mttvtcedu-my.sharepoint.com/:b:/g/personal/turki_a4_tvtc_gov_sa/IQA2Gb2Q9NNZTq_Hx5qOJWYkAUlCJmtt6aUFNpaymdYv9Mc?e=bUxwJd", "icon": "fa-file-lines"},
+    {"title": "طلب شهادة تعريف", "url": "https://tvtc.gov.sa/ar/Training-Units/Boys-Colleges/AQTC/Documents/%D8%A3%D8%AF%D9%84%D8%A9%20%D8%AE%D8%A7%D8%B5%D8%A9%20%D9%84%D9%84%D9%85%D8%AA%D8%AF%D8%B1%D8%A8%D9%8A%D9%86/%D8%A3%D8%AF%D9%84%D8%A9%20%D8%A8%D9%88%D8%A7%D8%A8%D8%A9%20%D8%B1%D8%A7%D9%8A%D8%AA%20%D9%84%D9%84%D9%85%D8%AA%D8%AF%D8%B1%D8%A8/%D8%AF%D9%84%D9%8A%D9%84%20%D8%B7%D9%84%D8%A8%20%D8%B4%D9%87%D8%A7%D8%AF%D8%A9%20%D8%A7%D9%84%D8%AA%D8%B9%D8%B1%D9%8A%D9%81%20%D8%B9%D9%86%20%D8%B7%D8%B1%D9%8A%D9%82%20%D8%B1%D8%A7%D9%8A%D8%AA.pdf", "icon": "fa-file-lines"},
     {"title": "التدرب عن بعد (تقني)", "url": "https://tvtclms.edu.sa/?ref=saudiwins.com", "icon": "fa-laptop-code"},
     {"title": "البريد الإلكتروني", "url": "https://outlook.office.com", "icon": "fa-envelope"}
 ]
@@ -169,7 +169,7 @@ def find_trainer_pages(pdf_path, search_term):
     except Exception:
         return []
 
-# --- الواجهات العامة للطلاب ---
+# --- الواجهات العامة للمتدربين ---
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -229,7 +229,7 @@ def search_absence():
             max_rate = rate
 
         if rate >= 20.0:
-            status_text = "محروم"
+            status_text = "محروم نظاماً"
             status_color = "danger"
         elif rate >= 15.0:
             status_text = "إنذار ثانٍ (خطر حرمان)"
@@ -439,7 +439,7 @@ def trainer_logout():
     session.pop("trainer_role", None)
     return redirect(url_for("trainer_login_page"))
 
-# API موحد ومحسن لحساب عدد السجلات وعدد المتدربين الفعليين بدقة
+# API موحد ومحسن لفرز الكشوفات وحساب المتدربين بدقة
 @app.route("/api/absence_records_query")
 def api_absence_records_query():
     source = request.args.get("source", "")
@@ -485,7 +485,6 @@ def api_absence_records_query():
         filtered = filtered[filtered['اسم المقرر'] == course_filter]
 
     total_records = len(filtered)
-    # حساب عدد المتدربين الفريدين فعلياً (بدون تكرار)
     total_unique_trainees = int(filtered['رقم المتدرب'].nunique()) if 'رقم المتدرب' in filtered.columns else total_records
 
     danger_count = len(filtered[filtered['rate'] >= 20.0])
@@ -548,7 +547,7 @@ def api_absence_records_query():
         }
     })
 
-# --- لوحة الإدارة الرئيسية ---
+# --- لوحة الإدارة الرئيسية مع مسارات الحذف ---
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -586,6 +585,12 @@ def admin():
             file = request.files.get("absence_file")
             if file and (file.filename.endswith(".csv") or file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
                 ext = os.path.splitext(file.filename)[1]
+                # حذف أي صيغة قديمة لملف الغياب أولاً
+                for old_ext in ['.xlsx', '.xls', '.csv']:
+                    old_path = os.path.join(BASE_DIR, f"absence_data{old_ext}")
+                    if os.path.exists(old_path):
+                        try: os.remove(old_path)
+                        except: pass
                 save_path = os.path.join(BASE_DIR, f"absence_data{ext}")
                 file.save(save_path)
                 msg = "تم رفع وتحديث ملف نسب الغياب بنجاح!"
@@ -596,6 +601,11 @@ def admin():
             file = request.files.get("so09_file")
             if file and (file.filename.endswith(".csv") or file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
                 ext = os.path.splitext(file.filename)[1]
+                for old_ext in ['.xlsx', '.xls', '.csv']:
+                    old_path = os.path.join(BASE_DIR, f"so09_data{old_ext}")
+                    if os.path.exists(old_path):
+                        try: os.remove(old_path)
+                        except: pass
                 save_path = os.path.join(BASE_DIR, f"so09_data{ext}")
                 file.save(save_path)
                 df_sec = load_so09_dataframe()
@@ -625,6 +635,35 @@ def admin():
                            trainers_list=trainers_list,
                            msg=msg, 
                            msg_type=msg_type)
+
+# مسار مخصص لحذف وتصفير أي ملف مرفوع بضغطة زر
+@app.route("/admin/delete_file/<file_type>", methods=["POST"])
+def admin_delete_file(file_type):
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
+
+    if file_type == "schedules":
+        if os.path.exists(SCHEDULES_PDF):
+            try: os.remove(SCHEDULES_PDF)
+            except: pass
+    elif file_type == "trainers_schedules":
+        if os.path.exists(TRAINERS_SCHEDULES_PDF):
+            try: os.remove(TRAINERS_SCHEDULES_PDF)
+            except: pass
+    elif file_type == "absence":
+        for ext in ['.xlsx', '.xls', '.csv']:
+            p = os.path.join(BASE_DIR, f"absence_data{ext}")
+            if os.path.exists(p):
+                try: os.remove(p)
+                except: pass
+    elif file_type == "so09":
+        for ext in ['.xlsx', '.xls', '.csv']:
+            p = os.path.join(BASE_DIR, f"so09_data{ext}")
+            if os.path.exists(p):
+                try: os.remove(p)
+                except: pass
+
+    return redirect(url_for("admin"))
 
 @app.route("/admin/trainer_role/update", methods=["POST"])
 def update_trainer_role():
