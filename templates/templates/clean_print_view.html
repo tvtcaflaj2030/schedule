@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>كشف متابعة الإنذارات ونسب الغياب</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+        * { box-sizing: border-box; font-family: 'Cairo', Tahoma, Arial, sans-serif; }
+        body { margin: 0; padding: 15mm 12mm; background: #fff; color: #000; font-size: 9pt; }
+        .header { width: 100%; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; display: table; }
+        .header-cell { display: table-cell; vertical-align: middle; }
+        .header-right { width: 35%; text-align: right; line-height: 1.4; font-weight: bold; }
+        .header-center { width: 35%; text-align: center; }
+        .header-center h2 { margin: 0; font-size: 13pt; font-weight: 900; }
+        .header-center p { margin: 3px 0 0 0; font-size: 9.5pt; font-weight: bold; color: #333; }
+        .header-left { width: 30%; text-align: left; line-height: 1.4; font-size: 8.5pt; }
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+        th, td { border: 1px solid #333; padding: 5px 4px; text-align: center; }
+        th { background-color: #f1f5f9; font-weight: 800; font-size: 8.5pt; }
+        td { font-size: 8.5pt; }
+        thead { display: table-header-group; }
+        tr { page-break-inside: avoid; }
+        @media print {
+            body { padding: 5mm; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- شريط علوي يظهر فقط على الشاشة -->
+    <div class="no-print" style="background:#0f172a; color:#fff; padding:10px 15px; border-radius:8px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:bold;">جاهز للحفظ أو الطباعة ({{ records|length }} سجل)</span>
+        <button onclick="window.print()" style="background:#059669; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-weight:bold; cursor:pointer;">
+            🖨️ حفظ كملف PDF / طباعة
+        </button>
+    </div>
+
+    <!-- الترويسة المطابقة تماماً لملفك السابق -->
+    <div class="header">
+        <div class="header-cell header-right">
+            المملكة العربية السعودية<br>
+            المؤسسة العامة للتدريب التقني والمهني<br>
+            المعهد الصناعي الثانوي بالأفلاج
+        </div>
+        <div class="header-cell header-center">
+            <h2>كشف متابعة الإنذارات ونسب الغياب</h2>
+            <p>{{ filter_summary }}</p>
+        </div>
+        <div class="header-cell header-left">
+            لوحة فرز ومتابعة الغياب والحرمان<br>
+            تاريخ الكشف: <span id="p-date"></span>
+        </div>
+    </div>
+
+    <!-- الجدول بكامل الأعمدة الثمانية المعتمدة -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 12%;">الرقم التدريبي</th>
+                <th style="width: 20%;">اسم المتدرب</th>
+                <th style="width: 18%;">القسم</th>
+                <th style="width: 18%;">اسم المقرر</th>
+                <th style="width: 8%;">الشعبة</th>
+                <th style="width: 8%;">ساعات الغياب</th>
+                <th style="width: 8%;">نسبة الغياب</th>
+                <th style="width: 8%;">الإجراء والحالة</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in records %}
+            <tr>
+                <td style="font-family:monospace; font-weight:bold;">{{ r.trainee_id }}</td>
+                <td style="text-align:right; font-weight:bold; padding-right:6px;">{{ r.trainee_name }}</td>
+                <td>{{ r.department }}</td>
+                <td>{{ r.course_name }}</td>
+                <td style="font-family:monospace;">{{ r.section_no }}</td>
+                <td>{{ r.absence_hours }} ساعة</td>
+                <td style="font-weight:bold;">{{ r.absence_rate }}%</td>
+                <td>{{ r.status_text }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        document.getElementById('p-date').textContent = new Date().toLocaleDateString('ar-SA');
+        // فتح أمر الحفظ التلقائي فور تحميل الصفحة
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => { window.print(); }, 400);
+        });
+    </script>
+</body>
+</html>
