@@ -169,7 +169,7 @@ def find_trainer_pages(pdf_path, search_term):
     except Exception:
         return []
 
-# --- الواجهات العامة للطلاب ---
+# --- الواجهات العامة للمتدربين ---
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -439,7 +439,7 @@ def trainer_logout():
     session.pop("trainer_role", None)
     return redirect(url_for("trainer_login_page"))
 
-# API موحد ومحسن لحساب عدد السجلات وعدد المتدربين الفعليين بدقة
+# API موحد ومحسن لفرز الكشوفات وحساب المتدربين بدقة
 @app.route("/api/absence_records_query")
 def api_absence_records_query():
     source = request.args.get("source", "")
@@ -485,7 +485,6 @@ def api_absence_records_query():
         filtered = filtered[filtered['اسم المقرر'] == course_filter]
 
     total_records = len(filtered)
-    # حساب عدد المتدربين الفريدين فعلياً (بدون تكرار)
     total_unique_trainees = int(filtered['رقم المتدرب'].nunique()) if 'رقم المتدرب' in filtered.columns else total_records
 
     danger_count = len(filtered[filtered['rate'] >= 20.0])
@@ -548,7 +547,7 @@ def api_absence_records_query():
         }
     })
 
-# --- لوحة الإدارة الرئيسية ---
+# --- لوحة الإدارة الرئيسية مع مسارات الحذف ---
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -586,6 +585,12 @@ def admin():
             file = request.files.get("absence_file")
             if file and (file.filename.endswith(".csv") or file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
                 ext = os.path.splitext(file.filename)[1]
+                # حذف أي صيغة قديمة لملف الغياب أولاً
+                for old_ext in ['.xlsx', '.xls', '.csv']:
+                    old_path = os.path.join(BASE_DIR, f"absence_data{old_ext}")
+                    if os.path.exists(old_path):
+                        try: os.remove(old_path)
+                        except: pass
                 save_path = os.path.join(BASE_DIR, f"absence_data{ext}")
                 file.save(save_path)
                 msg = "تم رفع وتحديث ملف نسب الغياب بنجاح!"
@@ -596,6 +601,11 @@ def admin():
             file = request.files.get("so09_file")
             if file and (file.filename.endswith(".csv") or file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
                 ext = os.path.splitext(file.filename)[1]
+                for old_ext in ['.xlsx', '.xls', '.csv']:
+                    old_path = os.path.join(BASE_DIR, f"so09_data{old_ext}")
+                    if os.path.exists(old_path):
+                        try: os.remove(old_path)
+                        except: pass
                 save_path = os.path.join(BASE_DIR, f"so09_data{ext}")
                 file.save(save_path)
                 df_sec = load_so09_dataframe()
@@ -625,6 +635,35 @@ def admin():
                            trainers_list=trainers_list,
                            msg=msg, 
                            msg_type=msg_type)
+
+# مسار مخصص لحذف وتصفير أي ملف مرفوع بضغطة زر
+@app.route("/admin/delete_file/<file_type>", methods=["POST"])
+def admin_delete_file(file_type):
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
+
+    if file_type == "schedules":
+        if os.path.exists(SCHEDULES_PDF):
+            try: os.remove(SCHEDULES_PDF)
+            except: pass
+    elif file_type == "trainers_schedules":
+        if os.path.exists(TRAINERS_SCHEDULES_PDF):
+            try: os.remove(TRAINERS_SCHEDULES_PDF)
+            except: pass
+    elif file_type == "absence":
+        for ext in ['.xlsx', '.xls', '.csv']:
+            p = os.path.join(BASE_DIR, f"absence_data{ext}")
+            if os.path.exists(p):
+                try: os.remove(p)
+                except: pass
+    elif file_type == "so09":
+        for ext in ['.xlsx', '.xls', '.csv']:
+            p = os.path.join(BASE_DIR, f"so09_data{ext}")
+            if os.path.exists(p):
+                try: os.remove(p)
+                except: pass
+
+    return redirect(url_for("admin"))
 
 @app.route("/admin/trainer_role/update", methods=["POST"])
 def update_trainer_role():
