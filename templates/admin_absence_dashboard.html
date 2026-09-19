@@ -9,18 +9,11 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
         body { font-family: 'Cairo', sans-serif; }
-
-        @media print {
-            .no-print { display: none !important; }
-            body { background: #ffffff !important; }
-            table { font-size: 8.5pt !important; width: 100% !important; }
-            th, td { padding: 4px 6px !important; border: 1px solid #cbd5e1 !important; }
-        }
     </style>
 </head>
 <body class="bg-slate-100/70 text-slate-800 min-h-screen">
 
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <a href="/admin" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors" title="العودة للإدارة">
@@ -36,8 +29,8 @@
                 <button onclick="exportTableToExcel()" class="px-3.5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all">
                     <i class="fa-solid fa-file-excel"></i> تصدير Excel
                 </button>
-                <button onclick="window.print()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all">
-                    <i class="fa-solid fa-print"></i> طباعة كشف A4
+                <button onclick="openCleanPdfView()" class="px-3.5 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all">
+                    <i class="fa-solid fa-file-pdf"></i> حفظ كملف PDF
                 </button>
             </div>
         </div>
@@ -56,26 +49,8 @@
         </div>
         {% else %}
 
-        <!-- ترويسة الطباعة الورقية A4 -->
-        <div class="hidden print:block border-b-2 border-slate-800 pb-3 mb-4">
-            <div class="flex justify-between items-center text-xs">
-                <div>
-                    <p class="font-black">المملكة العربية السعودية</p>
-                    <p>المؤسسة العامة للتدريب التقني والمهني</p>
-                    <p>المعهد الصناعي الثانوي بالأفلاج</p>
-                </div>
-                <div class="text-center">
-                    <h2 class="text-base font-black">كشف متابعة الإنذارات ونسب الغياب</h2>
-                    <p id="print-filter-summary" class="text-xs font-bold text-slate-600 mt-1">كافة الأقسام التدريبية</p>
-                </div>
-                <div class="text-left text-[11px]">
-                    <p>تاريخ الكشف: <span id="current-print-date"></span></p>
-                </div>
-            </div>
-        </div>
-
         <!-- العدادات الإحصائية الخمسة الذكية -->
-        <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 no-print">
+        <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
             <div class="bg-white p-4 rounded-2xl border-r-4 border-blue-600 border border-slate-200 shadow-sm">
                 <p class="text-[11px] text-slate-400 font-bold">إجمالي المتدربين (الفعلي)</p>
                 <div class="flex items-baseline gap-1.5 mt-1">
@@ -102,7 +77,7 @@
         </section>
 
         <!-- شريط الفلاتر -->
-        <section class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3 no-print">
+        <section class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">القسم التدريبي:</label>
@@ -144,7 +119,7 @@
 
         <!-- جدول الكشف -->
         <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="p-4 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 no-print">
+            <div class="p-4 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-2.5">
                     <span class="text-xs font-black text-slate-700">الكشف المعروض:</span>
                     <span class="px-2.5 py-1 rounded-xl text-xs font-extrabold bg-blue-50 text-blue-800 border border-blue-200">
@@ -162,7 +137,7 @@
                 <table id="absence-table" class="w-full text-right text-xs">
                     <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                         <tr>
-                            <th class="p-3">الرقم التدريبي</th>
+                            <th class="p-3 text-center">الرقم التدريبي</th>
                             <th class="p-3">اسم المتدرب</th>
                             <th class="p-3">القسم</th>
                             <th class="p-3">اسم المقرر</th>
@@ -181,9 +156,13 @@
 
     </main>
 
-    <script>
-        document.getElementById('current-print-date') && (document.getElementById('current-print-date').textContent = new Date().toLocaleDateString('ar-SA'));
+    <!-- نموذج مخفي لتمرير البيانات النظيفة -->
+    <form id="clean-pdf-form" action="/admin/download_absence_pdf" method="POST" target="_blank" class="hidden">
+        <input type="hidden" name="table_data" id="clean-table-data">
+        <input type="hidden" name="filter_summary" id="clean-filter-summary">
+    </form>
 
+    <script>
         let cachedRecords = [];
         let currentlyDisplayedRecords = [];
 
@@ -193,13 +172,6 @@
             const course = courseSelect ? courseSelect.value : 'ALL';
             const status = document.getElementById('filter-status').value;
             const tbody = document.getElementById('records-tbody');
-
-            const summaryEl = document.getElementById('print-filter-summary');
-            if (summaryEl) {
-                let sText = dept === 'ALL' ? 'كافة الأقسام التدريبية' : dept;
-                if (course !== 'ALL') sText += ` - ${course}`;
-                summaryEl.textContent = sText;
-            }
 
             tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold"><i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري استرجاع وفرز الكشف...</td></tr>';
 
@@ -271,7 +243,7 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors";
                 tr.innerHTML = `
-                    <td class="p-3 text-slate-700 font-mono font-bold">${r.trainee_id}</td>
+                    <td class="p-3 text-center text-slate-700 font-mono font-bold">${r.trainee_id}</td>
                     <td class="p-3 text-slate-900 font-bold">${r.trainee_name}</td>
                     <td class="p-3 text-slate-600">${r.department}</td>
                     <td class="p-3 text-slate-800">${r.course_name}</td>
@@ -323,6 +295,21 @@
             link.href = URL.createObjectURL(blob);
             link.download = `كشف_الإنذارات_والغياب_${new Date().toISOString().slice(0,10)}.csv`;
             link.click();
+        }
+
+        function openCleanPdfView() {
+            if (!currentlyDisplayedRecords || currentlyDisplayedRecords.length === 0) {
+                alert("لا توجد سجلات حالية لحفظها.");
+                return;
+            }
+            const dept = document.getElementById('filter-department').value;
+            const course = document.getElementById('filter-course').value;
+            let summary = dept === 'ALL' ? 'كافة الأقسام التدريبية' : dept;
+            if (course !== 'ALL') summary += ` - مقرر: ${course}`;
+
+            document.getElementById('clean-table-data').value = JSON.stringify(currentlyDisplayedRecords);
+            document.getElementById('clean-filter-summary').value = summary;
+            document.getElementById('clean-pdf-form').submit();
         }
 
         window.addEventListener('DOMContentLoaded', () => fetchFilteredData(false));
