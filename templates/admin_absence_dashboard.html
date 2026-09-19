@@ -10,48 +10,60 @@
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
         body { font-family: 'Cairo', sans-serif; }
 
-        /* إعادة ضبط إعدادات الطباعة للوضع الأصلي السليم */
+        /* قواعد الطباعة الصارمة لعلاج الانضغاط بالكامل */
         @media print {
             @page {
-                size: A4 landscape; /* فرض الطباعة بالعرض لتتسع الأعمدة الثمانية بالكامل */
-                margin: 8mm;
+                size: A4 landscape !important;
+                margin: 8mm !important;
             }
-            .no-print { 
-                display: none !important; 
+            .no-print, header, section, .no-print * {
+                display: none !important;
             }
-            body { 
-                background: #ffffff !important; 
+            body, html {
+                background: #ffffff !important;
                 color: #000000 !important;
-                margin: 0 !important; 
+                margin: 0 !important;
                 padding: 0 !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
+                width: 100% !important;
             }
-            .overflow-x-auto { 
-                overflow: visible !important; 
+            .print-container {
                 display: block !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
             }
-            table { 
-                width: 100% !important; 
-                border-collapse: collapse !important; 
-                table-layout: auto !important;
-                font-size: 9pt !important;
+            .table-wrapper {
+                display: block !important;
+                width: 100% !important;
+                overflow: visible !important;
             }
-            th, td { 
-                border: 1px solid #64748b !important; 
-                padding: 5px 4px !important; 
+            table {
+                width: 100% !important;
+                min-width: 100% !important;
+                max-width: 100% !important;
+                border-collapse: collapse !important;
+                table-layout: fixed !important; /* تثبيت العرض لمنع انضغاط الأعمدة */
+                font-size: 8pt !important;
+            }
+            th, td {
+                border: 1px solid #475569 !important;
+                padding: 4px 2px !important;
                 text-align: center !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+                color: #000 !important;
             }
-            th { 
-                background-color: #f1f5f9 !important; 
-                color: #0f172a !important;
-                font-weight: bold !important;
+            th {
+                background-color: #f1f5f9 !important;
+                font-weight: 800 !important;
             }
-            thead { 
-                display: table-header-group !important; 
+            thead {
+                display: table-header-group !important;
             }
-            tr { 
-                page-break-inside: avoid !important; 
+            tr {
+                page-break-inside: avoid !important;
             }
         }
     </style>
@@ -182,7 +194,7 @@
         </section>
 
         <!-- جدول الكشف -->
-        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden print:border-none print:shadow-none">
+        <div class="print-container bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="p-4 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 no-print">
                 <div class="flex items-center gap-2.5">
                     <span class="text-xs font-black text-slate-700">الكشف المعروض:</span>
@@ -197,18 +209,18 @@
                 <span class="text-[11px] text-slate-400">مرتب تلقائياً بحسب الأكثر غياباً</span>
             </div>
 
-            <div class="overflow-x-auto">
+            <div class="table-wrapper overflow-x-auto">
                 <table id="absence-table" class="w-full text-right text-xs">
                     <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                         <tr>
-                            <th class="p-3 text-center print:w-[12%]">الرقم التدريبي</th>
-                            <th class="p-3 print:w-[18%]">اسم المتدرب</th>
-                            <th class="p-3 print:w-[16%]">القسم</th>
-                            <th class="p-3 print:w-[18%]">اسم المقرر</th>
-                            <th class="p-3 text-center print:w-[8%]">الشعبة</th>
-                            <th class="p-3 text-center print:w-[8%]">ساعات الغياب</th>
-                            <th class="p-3 text-center print:w-[8%]">نسبة الغياب</th>
-                            <th class="p-3 text-center print:w-[12%]">الإجراء والحالة</th>
+                            <th style="width: 11%;" class="p-3 text-center">الرقم التدريبي</th>
+                            <th style="width: 19%;" class="p-3">اسم المتدرب</th>
+                            <th style="width: 16%;" class="p-3">القسم</th>
+                            <th style="width: 18%;" class="p-3">اسم المقرر</th>
+                            <th style="width: 8%;" class="p-3 text-center">الشعبة</th>
+                            <th style="width: 9%;" class="p-3 text-center">ساعات الغياب</th>
+                            <th style="width: 8%;" class="p-3 text-center">نسبة الغياب</th>
+                            <th style="width: 11%;" class="p-3 text-center">الإجراء والحالة</th>
                         </tr>
                     </thead>
                     <tbody id="records-tbody" class="divide-y divide-slate-100 font-medium"></tbody>
