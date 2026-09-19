@@ -543,6 +543,21 @@ def api_absence_records_query():
         }
     })
 
+# توليد ملف PDF الأصلي النظيف عبر HTML مجهز بالكامل للطباعة والتحميل
+@app.route("/admin/download_absence_pdf", methods=["POST"])
+def download_absence_pdf():
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
+
+    try:
+        records = json.loads(request.form.get("table_data", "[]"))
+        filter_summary = request.form.get("filter_summary", "كافة الأقسام التدريبية")
+    except:
+        records = []
+        filter_summary = "كافة الأقسام التدريبية"
+
+    return render_template("clean_print_view.html", records=records, filter_summary=filter_summary)
+
 # --- لوحة الإدارة الرئيسية وأزرار حذف الملفات ---
 
 @app.route("/admin", methods=["GET", "POST"])
@@ -631,7 +646,6 @@ def admin():
                            msg=msg, 
                            msg_type=msg_type)
 
-# مسارات حذف وتصفير الملفات للأدمن
 @app.route("/admin/delete_file/<file_type>", methods=["POST"])
 def admin_delete_file(file_type):
     if not session.get("logged_in"):
