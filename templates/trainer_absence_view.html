@@ -47,8 +47,9 @@
 
     <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-        <!-- العدادات الإحصائية -->
+        <!-- العدادات الإحصائية الخمسة الذكية (إضافة بطاقة عدد المتدربين الفعليين) -->
         <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 no-print">
+            <!-- البطاقة الجديدة: إجمالي المتدربين المسندين بدون تكرار -->
             <div class="bg-white p-4 rounded-2xl border-r-4 border-blue-600 border border-slate-200 shadow-sm">
                 <p class="text-[11px] text-slate-400 font-bold">إجمالي المتدربين (الفعلي)</p>
                 <div class="flex items-baseline gap-1.5 mt-1">
@@ -126,8 +127,8 @@
 
         <!-- جدول الكشف المفروز -->
         <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="p-4 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 no-print">
-                <div class="flex items-center gap-2.5">
+            <div class="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between no-print">
+                <div class="flex items-center gap-2">
                     <span class="text-xs font-black text-slate-700">الكشف المعروض:</span>
                     <span class="px-2.5 py-1 rounded-xl text-xs font-extrabold bg-blue-50 text-blue-800 border border-blue-200">
                         <i class="fa-solid fa-user-graduate ml-1"></i>
@@ -136,12 +137,6 @@
                     <span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">
                         <span id="records-count-badge">0</span> سجل
                     </span>
-
-                    <!-- الزر الجديد لطباعة التعهدات لشعب المدرب -->
-                    <button onclick="printAllPledges()" class="mr-2 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm transition-all">
-                        <i class="fa-solid fa-file-signature"></i>
-                        <span>طباعة التعهدات للكل (A4)</span>
-                    </button>
                 </div>
                 <span class="text-[11px] text-slate-400">مرتب تلقائياً بحسب الأكثر غياباً</span>
             </div>
@@ -158,7 +153,6 @@
                             <th class="p-3 text-center">ساعات الغياب</th>
                             <th class="p-3 text-center">نسبة الغياب</th>
                             <th class="p-3 text-center">الإجراء والحالة</th>
-                            <th class="p-3 text-center no-print">تعهد خطي</th>
                         </tr>
                     </thead>
                     <tbody id="records-tbody" class="divide-y divide-slate-100 font-medium"></tbody>
@@ -168,14 +162,8 @@
 
     </main>
 
-    <!-- نموذج مخفي لطباعة التعهدات -->
-    <form id="pledge-form" action="/print_pledges" method="POST" target="_blank" class="hidden">
-        <input type="hidden" name="pledges_data" id="pledges-data-input">
-    </form>
-
     <script>
         let cachedData = [];
-        let currentlyDisplayedRecords = [];
 
         async function fetchData(updateCourses = false) {
             const deptEl = document.getElementById('filter-department');
@@ -185,7 +173,7 @@
             const status = document.getElementById('filter-status').value;
             const tbody = document.getElementById('records-tbody');
 
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center p-8 text-slate-400 font-bold"><i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري استرجاع الكشف...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold"><i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري استرجاع الكشف...</td></tr>';
 
             try {
                 const res = await fetch(`/api/absence_records_query?source=trainer&department=${encodeURIComponent(dept)}&course=${encodeURIComponent(course)}&status=${status}`);
@@ -193,7 +181,6 @@
 
                 if (data.success) {
                     cachedData = data.records;
-                    currentlyDisplayedRecords = data.records;
 
                     document.getElementById('stat-trainees').textContent = data.stats.total_trainees;
                     document.getElementById('stat-danger').textContent = data.stats.danger;
@@ -221,7 +208,7 @@
                     renderTable(data.records);
                 }
             } catch (err) {
-                tbody.innerHTML = '<tr><td colspan="9" class="text-center p-8 text-rose-600 font-bold">تعذر تحميل الكشف من السيرفر.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-rose-600 font-bold">تعذر تحميل الكشف من السيرفر.</td></tr>';
             }
         }
 
@@ -234,10 +221,9 @@
         function renderTable(records) {
             const tbody = document.getElementById('records-tbody');
             tbody.innerHTML = '';
-            currentlyDisplayedRecords = records;
 
             if (records.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="text-center p-8 text-slate-400 font-bold">لا توجد سجلات مطابقة في نطاقك التدريبي. تأكد من رفع ملف الشعب (SO09) لربط شعبك التدريبية.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold">لا توجد سجلات مطابقة في نطاقك التدريبي. تأكد من رفع ملف الشعب (SO09) لربط شعبك التدريبية.</td></tr>';
                 return;
             }
 
@@ -252,8 +238,6 @@
                 } else {
                     badgeClass = 'bg-emerald-100 text-emerald-900 border border-emerald-200';
                 }
-
-                const singleData = encodeURIComponent(JSON.stringify([r]));
 
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors";
@@ -272,29 +256,9 @@
                             ${r.status_text}
                         </span>
                     </td>
-                    <td class="p-3 text-center no-print">
-                        <button onclick="printSinglePledges('${singleData}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[11px] font-bold transition-colors" title="طباعة تعهد لهذا المتدرب فقط">
-                            <i class="fa-solid fa-print"></i> نموذج
-                        </button>
-                    </td>
                 `;
                 tbody.appendChild(tr);
             });
-        }
-
-        function printAllPledges() {
-            if (!currentlyDisplayedRecords || currentlyDisplayedRecords.length === 0) {
-                alert("لا توجد سجلات حالية لطباعة تعهداتها.");
-                return;
-            }
-            document.getElementById('pledges-data-input').value = JSON.stringify(currentlyDisplayedRecords);
-            document.getElementById('pledge-form').submit();
-        }
-
-        function printSinglePledges(encodedJson) {
-            const data = decodeURIComponent(encodedJson);
-            document.getElementById('pledges-data-input').value = data;
-            document.getElementById('pledge-form').submit();
         }
 
         function clientSearch() {
@@ -314,12 +278,12 @@
         }
 
         function exportTableToExcel() {
-            if (!currentlyDisplayedRecords || currentlyDisplayedRecords.length === 0) {
+            if (!cachedData || cachedData.length === 0) {
                 alert("لا توجد بيانات لتصديرها.");
                 return;
             }
             let csvContent = "\uFEFFالرقم التدريبي,اسم المتدرب,القسم,المقرر,الشعبة,ساعات الغياب,نسبة الغياب,الحالة\n";
-            currentlyDisplayedRecords.forEach(r => {
+            cachedData.forEach(r => {
                 csvContent += `"${r.trainee_id}","${r.trainee_name}","${r.department}","${r.course_name}","${r.section_no}","${r.absence_hours}","${r.absence_rate}%","${r.status_text}"\n`;
             });
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
