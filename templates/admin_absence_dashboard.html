@@ -10,11 +10,36 @@
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
         body { font-family: 'Cairo', sans-serif; }
 
+        /* ضبط قواعد الطباعة بدقة لاستعادة شكل الكشف السابق */
         @media print {
             .no-print { display: none !important; }
-            body { background: #ffffff !important; }
-            table { font-size: 8.5pt !important; width: 100% !important; }
-            th, td { padding: 4px 6px !important; border: 1px solid #cbd5e1 !important; }
+            body { 
+                background: #ffffff !important; 
+                margin: 0 !important; 
+                padding: 10mm !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .overflow-x-auto { 
+                overflow: visible !important; 
+            }
+            table { 
+                width: 100% !important; 
+                border-collapse: collapse !important; 
+                font-size: 8.5pt !important;
+            }
+            th, td { 
+                border: 1px solid #94a3b8 !important; 
+                padding: 4px 6px !important; 
+                text-align: center !important;
+            }
+            th { 
+                background-color: #f1f5f9 !important; 
+                color: #0f172a !important;
+                font-weight: 800 !important;
+            }
+            thead { display: table-header-group !important; }
+            tr { page-break-inside: avoid !important; }
         }
     </style>
 </head>
@@ -56,10 +81,10 @@
         </div>
         {% else %}
 
-        <!-- ترويسة الطباعة الورقية A4 -->
+        <!-- ترويسة الطباعة الرسمية A4 -->
         <div class="hidden print:block border-b-2 border-slate-800 pb-3 mb-4">
             <div class="flex justify-between items-center text-xs">
-                <div>
+                <div class="text-right leading-tight">
                     <p class="font-black">المملكة العربية السعودية</p>
                     <p>المؤسسة العامة للتدريب التقني والمهني</p>
                     <p>المعهد الصناعي الثانوي بالأفلاج</p>
@@ -68,15 +93,15 @@
                     <h2 class="text-base font-black">كشف متابعة الإنذارات ونسب الغياب</h2>
                     <p id="print-filter-summary" class="text-xs font-bold text-slate-600 mt-1">كافة الأقسام التدريبية</p>
                 </div>
-                <div class="text-left text-[11px]">
+                <div class="text-left text-[11px] leading-tight">
+                    <p>لوحة فرز ومتابعة نسب الغياب والحرمان - الإدارة</p>
                     <p>تاريخ الكشف: <span id="current-print-date"></span></p>
                 </div>
             </div>
         </div>
 
-        <!-- العدادات الإحصائية الخمسة الذكية (إضافة بطاقة عدد المتدربين الفعليين) -->
+        <!-- العدادات الإحصائية الخمسة الذكية -->
         <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 no-print">
-            <!-- البطاقة الجديدة: إجمالي المتدربين بدون تكرار -->
             <div class="bg-white p-4 rounded-2xl border-r-4 border-blue-600 border border-slate-200 shadow-sm">
                 <p class="text-[11px] text-slate-400 font-bold">إجمالي المتدربين (الفعلي)</p>
                 <div class="flex items-baseline gap-1.5 mt-1">
@@ -143,10 +168,10 @@
             </div>
         </section>
 
-        <!-- جدول الكشف وسحب الأسماء -->
-        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between no-print">
-                <div class="flex items-center gap-2">
+        <!-- جدول الكشف -->
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden print:border-none print:shadow-none">
+            <div class="p-4 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 no-print">
+                <div class="flex items-center gap-2.5">
                     <span class="text-xs font-black text-slate-700">الكشف المعروض:</span>
                     <span class="px-2.5 py-1 rounded-xl text-xs font-extrabold bg-blue-50 text-blue-800 border border-blue-200">
                         <i class="fa-solid fa-user-graduate ml-1"></i>
@@ -163,14 +188,14 @@
                 <table id="absence-table" class="w-full text-right text-xs">
                     <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                         <tr>
-                            <th class="p-3">الرقم التدريبي</th>
-                            <th class="p-3">اسم المتدرب</th>
-                            <th class="p-3">القسم</th>
-                            <th class="p-3">اسم المقرر</th>
-                            <th class="p-3 text-center">الشعبة</th>
-                            <th class="p-3 text-center">ساعات الغياب</th>
-                            <th class="p-3 text-center">نسبة الغياب</th>
-                            <th class="p-3 text-center">الإجراء والحالة</th>
+                            <th class="p-3 text-center print:w-[11%]">الرقم التدريبي</th>
+                            <th class="p-3 print:w-[20%]">اسم المتدرب</th>
+                            <th class="p-3 print:w-[17%]">القسم</th>
+                            <th class="p-3 print:w-[20%]">اسم المقرر</th>
+                            <th class="p-3 text-center print:w-[8%]">الشعبة</th>
+                            <th class="p-3 text-center print:w-[8%]">ساعات الغياب</th>
+                            <th class="p-3 text-center print:w-[8%]">نسبة الغياب</th>
+                            <th class="p-3 text-center print:w-[8%]">الإجراء والحالة</th>
                         </tr>
                     </thead>
                     <tbody id="records-tbody" class="divide-y divide-slate-100 font-medium"></tbody>
@@ -186,6 +211,7 @@
         document.getElementById('current-print-date') && (document.getElementById('current-print-date').textContent = new Date().toLocaleDateString('ar-SA'));
 
         let cachedRecords = [];
+        let currentlyDisplayedRecords = [];
 
         async function fetchFilteredData(updateCoursesList = false) {
             const dept = document.getElementById('filter-department').value;
@@ -193,6 +219,13 @@
             const course = courseSelect ? courseSelect.value : 'ALL';
             const status = document.getElementById('filter-status').value;
             const tbody = document.getElementById('records-tbody');
+
+            const summaryEl = document.getElementById('print-filter-summary');
+            if (summaryEl) {
+                let sText = dept === 'ALL' ? 'كافة الأقسام التدريبية' : dept;
+                if (course !== 'ALL') sText += ` - ${course}`;
+                summaryEl.textContent = sText;
+            }
 
             tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold"><i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري استرجاع وفرز الكشف...</td></tr>';
 
@@ -202,6 +235,7 @@
 
                 if (data.success) {
                     cachedRecords = data.records;
+                    currentlyDisplayedRecords = data.records;
 
                     document.getElementById('stat-trainees').textContent = data.stats.total_trainees;
                     document.getElementById('stat-danger').textContent = data.stats.danger;
@@ -241,6 +275,7 @@
         function renderTable(records) {
             const tbody = document.getElementById('records-tbody');
             tbody.innerHTML = '';
+            currentlyDisplayedRecords = records;
 
             if (records.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-slate-400 font-bold">لا توجد سجلات مطابقة للفلاتر المحددة.</td></tr>';
@@ -262,7 +297,7 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors";
                 tr.innerHTML = `
-                    <td class="p-3 text-slate-700 font-mono font-bold">${r.trainee_id}</td>
+                    <td class="p-3 text-center text-slate-700 font-mono font-bold">${r.trainee_id}</td>
                     <td class="p-3 text-slate-900 font-bold">${r.trainee_name}</td>
                     <td class="p-3 text-slate-600">${r.department}</td>
                     <td class="p-3 text-slate-800">${r.course_name}</td>
@@ -299,13 +334,13 @@
         }
 
         function exportTableToExcel() {
-            if (!cachedRecords || cachedRecords.length === 0) {
+            if (!currentlyDisplayedRecords || currentlyDisplayedRecords.length === 0) {
                 alert("لا توجد بيانات لتصديرها.");
                 return;
             }
 
             let csvContent = "\uFEFFالرقم التدريبي,اسم المتدرب,القسم,اسم المقرر,الشعبة,ساعات الغياب,نسبة الغياب,الحالة\n";
-            cachedRecords.forEach(r => {
+            currentlyDisplayedRecords.forEach(r => {
                 csvContent += `"${r.trainee_id}","${r.trainee_name}","${r.department}","${r.course_name}","${r.section_no}","${r.absence_hours}","${r.absence_rate}%","${r.status_text}"\n`;
             });
 
