@@ -29,77 +29,124 @@ SCHEDULES_PDF = os.path.join(BASE_DIR, "schedules.pdf")
 TRAINERS_SCHEDULES_PDF = os.path.join(BASE_DIR, "trainers_schedules.pdf")
 DB_PATH = os.path.join(BASE_DIR, "attendance_archive.db")
 
-# إعدادات المزامنة التلقائية مع GitHub لمنع حذف البيانات
+# إعدادات المزامنة التلقائية مع GitHub عبر فرع مستقل (storage) لمنع حذف أي ملف
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "tvtcaflaj2030/schedule").strip()
+STORAGE_BRANCH = "storage"
 
-# --- 2. دوال الحفظ والاسترجاع التلقائي من GitHub ---
-def sync_file_to_github(local_path, repo_filename, commit_msg="Auto-backup from Render"):
-    if not GITHUB_TOKEN or not os.path.exists(local_path):
-        return
+# --- 2. دوال الحفظ والاسترجاع التلقائي من فرع storage في GitHub ---
+def _github_headers():
+    return {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json"
+    }
+
+def ensure_storage_branch():
+    if not GITHUB_TOKEN:
+        return False
     try:
+        branch_url = f"https://api.github.com/repos/{GITHUB_REPO}/git/ref/heads/{STORAGE_BRANCH}"
+        res = requests.get(branch_url, headers=_github_headers(), timeout=15)
+        if res.status_code == 200:
+            return True
+        main_url = f"https://api.github.com/repos/{GITHUB_REPO}/git/ref/heads/main"
+        main_res = requests.get(main_url, headers=_github_headers(), timeout=15)
+        if main_res.status_code == 200:
+            main_sha = main_res.json()["object"]["sha"]
+            create_url = f"https://api.github.com/repos/{GITHUB_REPO}/git/refs"
+            create_res = requests.post(
+                create_url,
+                headers=_github_headers(),
+                json={"ref": f"refs/heads/{STORAGE_BRANCH}", "sha": main_sha},
+                timeout=15
+            )
+            return create_res.status_code in (200, 201)
+    except Exception as e:
+        print("Ensure storage branch error:", e)
+    return False
+
+def sync_file_to_github(local_path, repo_filename, commit_msg="Auto-backup file"):
+    """رفع أي ملف (PDF, Excel, DB) إلى فرع storage في GitHub بشكل دائم"""
+    if not GITHUB_TOKEN or not os.path.exists(local_path):
+        return False
+    try:
+        ensure_storage_branch()
         url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{repo_filename}"
-        headers = {
-            "Authorization": f"Bearer {GITHUB_TOKEN}",
-            "Accept": "application/vnd.github+json"
-        }
         with open(local_path, "rb") as f:
             content_encoded = base64.b64encode(f.read()).decode("utf-8")
 
-        get_res = requests.get(url, headers=headers, timeout=15)
+        get_res = requests.get(url, headers=_github_headers(), params={"ref": STORAGE_BRANCH}, timeout=15)
         sha = get_res.json().get("sha") if get_res.status_code == 200 else None
 
         data = {
             "message": commit_msg,
             "content": content_encoded,
-            "branch": "main"
+            "branch": STORAGE_BRANCH
         }
         if sha:
             data["sha"] = sha
 
-        requests.put(url, headers=headers, json=data, timeout=30)
+        put_res = requests.put(url, headers=_github_headers(), json=data, timeout=60)
+        return put_res.status_code in (200, 201)
     except Exception as e:
         print(f"GitHub Sync Error ({repo_filename}):", e)
+        return False
+
+def delete_file_from_github(repo_filename):
+    if not GITHUB_TOKEN:
+        return
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{repo_filename}"
+        get_res = requests.get(url, headers=_github_headers(), params={"ref": STORAGE_BRANCH}, timeout=15)
+        if get_res.status_code == 200:
+            sha = get_res.json().get("sha")
+            requests.delete(
+                url,
+                headers=_github_headers(),
+                json={"message": f"Delete {repo_filename}", "sha": sha, "branch": STORAGE_BRANCH},
+                timeout=20
+            )
+    except Exception as e:
+        print(f"GitHub Delete Error ({repo_filename}):", e)
 
 def backup_db_to_github():
     sync_file_to_github(DB_PATH, "attendance_archive.db", "Auto-backup database")
 
 def restore_file_from_github(local_path, repo_filename):
-    if not GITHUB_TOKEN or os.path.exists(local_path):
-        return
-    try:
-        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{repo_filename}"
-        headers = {
-            "Authorization": f"Bearer {GITHUB_TOKEN}",
-            "Accept": "application/vnd.github+json"
-        }
-        res = requests.get(url, headers=headers, timeout=20)
-        if res.status_code == 200:
-            file_data = res.json()
-            if file_data.get("content"):
-                content_bytes = base64.b64decode(file_data["content"])
-                with open(local_path, "wb") as f:
-                    f.write(content_bytes)
-            elif file_data.get("download_url"):
-                dl_res = requests.get(file_data["download_url"], timeout=30)
-                if dl_res.status_code == 200:
+    if not GITHUB_TOKEN:
+        return False
+    for branch in [STORAGE_BRANCH, "main"]:
+        try:
+            url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{repo_filename}"
+            res = requests.get(url, headers=_github_headers(), params={"ref": branch}, timeout=20)
+            if res.status_code == 200:
+                file_data = res.json()
+                if file_data.get("content"):
+                    content_bytes = base64.b64decode(file_data["content"])
                     with open(local_path, "wb") as f:
-                        f.write(dl_res.content)
-    except Exception as e:
-        print(f"GitHub Restore Error ({repo_filename}):", e)
+                        f.write(content_bytes)
+                    return True
+                elif file_data.get("download_url"):
+                    dl_res = requests.get(file_data["download_url"], headers=_github_headers(), timeout=45)
+                    if dl_res.status_code == 200:
+                        with open(local_path, "wb") as f:
+                            f.write(dl_res.content)
+                        return True
+        except Exception as e:
+            print(f"GitHub Restore Error ({repo_filename} on {branch}):", e)
+    return False
 
 def restore_all_from_github():
+    if not GITHUB_TOKEN:
+        return
     restore_file_from_github(DB_PATH, "attendance_archive.db")
     restore_file_from_github(TRAINERS_SCHEDULES_PDF, "trainers_schedules.pdf")
+    restore_file_from_github(SCHEDULES_PDF, "schedules.pdf")
     for base_name in ["absence_data", "so09_data"]:
-        has_local = any(os.path.exists(os.path.join(BASE_DIR, f"{base_name}{ext}")) for ext in ['.xlsx', '.xls', '.csv'])
-        if not has_local:
-            for ext in ['.xlsx', '.xls', '.csv']:
-                restore_file_from_github(os.path.join(BASE_DIR, f"{base_name}{ext}"), f"{base_name}{ext}")
-                if os.path.exists(os.path.join(BASE_DIR, f"{base_name}{ext}")):
-                    break
-
-restore_all_from_github()
+        for ext in ['.xlsx', '.xls', '.csv']:
+            target_path = os.path.join(BASE_DIR, f"{base_name}{ext}")
+            if restore_file_from_github(target_path, f"{base_name}{ext}"):
+                break
 
 # --- 3. نظام الحماية من تخمين كلمات المرور ---
 _LOGIN_ATTEMPTS = {}
@@ -127,7 +174,7 @@ def record_failed_attempt(ip):
 def clear_failed_attempts(ip):
     _LOGIN_ATTEMPTS.pop(ip, None)
 
-# --- 4. نظام التخزين المؤقت الذكي (Smart Caching) ---
+# --- 4. التخزين المؤقت الذكي ---
 _DATAFRAME_CACHE = {
     "absence": {"mtime": None, "path": None, "df": None},
     "so09": {"mtime": None, "path": None, "df": None}
@@ -155,7 +202,6 @@ def clean_employee_id(text):
     digits = normalize_digits(text)
     return digits.lstrip('0')
 
-# --- 5. دالة فحص حالة المقرر (طي القيد / الحرمان / الساعات المصفرة) ---
 def extract_row_course_status(row):
     for col in ['حالة المقرر', 'حالة المتدرب', 'الحالة']:
         if col in row and pd.notna(row[col]):
@@ -170,11 +216,10 @@ def is_folded_or_deprived_text(status_str):
     keywords = ["مطوي", "طي قيد", "قيده", "محروم", "حرمان", "منقطع", "انقطاع", "إنقطاع", "مفصول"]
     return any(k in status_str for k in keywords)
 
-# --- 6. إدارة قاعدة البيانات ---
+# --- 5. إدارة قاعدة البيانات ---
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL;")
     return conn
 
 def init_db():
@@ -208,6 +253,7 @@ def init_db():
         ''')
         conn.commit()
 
+restore_all_from_github()
 init_db()
 
 SERVICES_LIST = [
@@ -394,7 +440,6 @@ def search_absence():
         except (ValueError, TypeError):
             hours = 0.0
 
-        # معالجة حالة طي القيد أو الحرمان حتى لو كانت الساعات مصفرة
         if is_folded_or_deprived_text(course_status_raw):
             if "مطوي" in course_status_raw or "قيده" in course_status_raw or "انقطاع" in course_status_raw or "إنقطاع" in course_status_raw:
                 status_text = f"تم طي قيد المتدرب من المعهد ({course_status_raw})"
@@ -670,7 +715,6 @@ def api_absence_records_query():
     total_records = len(filtered)
     total_unique_trainees = int(filtered['رقم المتدرب'].nunique()) if 'رقم المتدرب' in filtered.columns else total_records
 
-    # احتساب مطوي القيد والمحرومين ضمن فئة الخطر حتى لو كانت نسبتهم 0%
     danger_mask = (filtered['rate'] >= 20.0) | (filtered['is_folded_or_deprived'])
     warn2_mask = (~danger_mask) & (filtered['rate'] >= 15.0) & (filtered['rate'] < 20.0)
     warn1_mask = (~danger_mask) & (filtered['rate'] >= 10.0) & (filtered['rate'] < 15.0)
@@ -777,7 +821,7 @@ def admin():
                 file.save(SCHEDULES_PDF)
                 invalidate_caches()
                 sync_file_to_github(SCHEDULES_PDF, "schedules.pdf", "Update schedules.pdf")
-                msg = "تم رفع وتحديث ملف جداول المتدربين بنجاح!"
+                msg = "تم رفع وتحديث ملف جداول المتدربين وحفظه سحابياً بنجاح!"
                 msg_type = "success"
 
         elif action == "upload_trainers_schedule":
@@ -787,7 +831,7 @@ def admin():
                 file.save(TRAINERS_SCHEDULES_PDF)
                 invalidate_caches()
                 sync_file_to_github(TRAINERS_SCHEDULES_PDF, "trainers_schedules.pdf", "Update trainers_schedules.pdf")
-                msg = "تم رفع وتحديث ملف جداول المدربين بنجاح!"
+                msg = "تم رفع وتحديث ملف جداول المدربين وحفظه سحابياً بنجاح!"
                 msg_type = "success"
 
         elif action == "upload_absence_file":
@@ -800,11 +844,13 @@ def admin():
                     if os.path.exists(old_path):
                         try: os.remove(old_path)
                         except Exception: pass
+                    if old_ext != ext:
+                        delete_file_from_github(f"absence_data{old_ext}")
                 save_path = os.path.join(BASE_DIR, f"absence_data{ext}")
                 file.save(save_path)
                 invalidate_caches()
                 sync_file_to_github(save_path, f"absence_data{ext}", "Update absence_data")
-                msg = "تم رفع وتحديث ملف نسب الغياب بنجاح!"
+                msg = "تم رفع وتحديث ملف نسب الغياب وحفظه سحابياً بنجاح!"
                 msg_type = "success"
 
         elif action == "upload_so09_file":
@@ -817,6 +863,8 @@ def admin():
                     if os.path.exists(old_path):
                         try: os.remove(old_path)
                         except Exception: pass
+                    if old_ext != ext:
+                        delete_file_from_github(f"so09_data{old_ext}")
                 save_path = os.path.join(BASE_DIR, f"so09_data{ext}")
                 file.save(save_path)
                 invalidate_caches()
@@ -833,7 +881,7 @@ def admin():
                                 c.execute("INSERT OR IGNORE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, 'trainer')", (clean_emp, t_name))
                         conn.commit()
                     backup_db_to_github()
-                msg = "تم رفع ملف الشعب (SO09) واستيراد قائمة المدربين تلقائياً!"
+                msg = "تم رفع ملف الشعب (SO09) واستيراد المدربين وحفظهم سحابياً!"
                 msg_type = "success"
 
     with get_db_connection() as conn:
@@ -855,21 +903,25 @@ def admin_delete_file(file_type):
     if file_type == "schedules" and os.path.exists(SCHEDULES_PDF):
         try: os.remove(SCHEDULES_PDF)
         except Exception: pass
+        delete_file_from_github("schedules.pdf")
     elif file_type == "trainers_schedules" and os.path.exists(TRAINERS_SCHEDULES_PDF):
         try: os.remove(TRAINERS_SCHEDULES_PDF)
         except Exception: pass
+        delete_file_from_github("trainers_schedules.pdf")
     elif file_type == "absence":
         for ext in ['.xlsx', '.xls', '.csv']:
             p = os.path.join(BASE_DIR, f"absence_data{ext}")
             if os.path.exists(p):
                 try: os.remove(p)
                 except Exception: pass
+            delete_file_from_github(f"absence_data{ext}")
     elif file_type == "so09":
         for ext in ['.xlsx', '.xls', '.csv']:
             p = os.path.join(BASE_DIR, f"so09_data{ext}")
             if os.path.exists(p):
                 try: os.remove(p)
                 except Exception: pass
+            delete_file_from_github(f"so09_data{ext}")
 
     invalidate_caches()
     return redirect(url_for("admin"))
