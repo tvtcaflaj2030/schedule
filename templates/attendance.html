@@ -9,12 +9,16 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
         body { font-family: 'Cairo', sans-serif; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: #fff !important; }
+        }
     </style>
 </head>
 <body class="bg-slate-100/70 text-slate-800 min-h-screen flex flex-col justify-between">
 
     <!-- الهيدر -->
-    <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
         <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <a href="/" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors" title="الرئيسية">
@@ -36,7 +40,7 @@
     <main class="max-w-4xl mx-auto px-4 py-8 space-y-6 w-full flex-1">
 
         <!-- بطاقة البحث -->
-        <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-center">
+        <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-center no-print">
             <div class="w-14 h-14 bg-emerald-100 text-emerald-800 rounded-2xl flex items-center justify-center text-2xl mx-auto shadow-inner">
                 <i class="fa-solid fa-user-clock"></i>
             </div>
@@ -61,67 +65,65 @@
 
         <!-- دليل نسب الغياب المعتمدة -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[11px] font-bold">
-            <div class="p-2.5 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200">
-                <span class="block text-xs font-black">أقل من 10%</span>
+            <div class="p-2.5 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 flex flex-col items-center justify-center gap-0.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mb-0.5"></span>
+                <span class="block text-xs font-black">0% - 9.99%</span>
                 <span>وضع آمن (مستمر)</span>
             </div>
-            <div class="p-2.5 rounded-2xl bg-amber-50 text-amber-800 border border-amber-200">
+            <div class="p-2.5 rounded-2xl bg-amber-50 text-amber-800 border border-amber-200 flex flex-col items-center justify-center gap-0.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400 mb-0.5"></span>
                 <span class="block text-xs font-black">10% - 14.99%</span>
                 <span>إنذار أول</span>
             </div>
-            <div class="p-2.5 rounded-2xl bg-orange-50 text-orange-900 border border-orange-200">
+            <div class="p-2.5 rounded-2xl bg-orange-50 text-orange-900 border border-orange-200 flex flex-col items-center justify-center gap-0.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-orange-500 mb-0.5"></span>
                 <span class="block text-xs font-black">15% - 19.99%</span>
                 <span>إنذار ثانٍ (خطر)</span>
             </div>
-            <div class="p-2.5 rounded-2xl bg-rose-50 text-rose-900 border border-rose-200">
-                <span class="block text-xs font-black">20% فأكثر</span>
-                <span>حرمان نظامي</span>
+            <div class="p-2.5 rounded-2xl bg-rose-50 text-rose-900 border border-rose-200 flex flex-col items-center justify-center gap-0.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-600 mb-0.5"></span>
+                <span class="block text-xs font-black">20% فأكثر / طي قيد</span>
+                <span>حرمان أو طي قيد</span>
             </div>
         </div>
 
         <!-- نتائج الاستعلام (مخفية افتراضياً) -->
-        <div id="result-box" class="hidden space-y-4">
+        <div id="result-box" class="hidden space-y-5">
 
             <!-- بطاقة بيانات المتدرب والشريط التحذيري الفوري -->
             <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                     <div>
-                        <h3 id="res-name" class="text-base font-black text-slate-900">-</h3>
-                        <p class="text-xs text-slate-500 mt-0.5">
+                        <h3 id="res-name" class="text-base sm:text-lg font-black text-slate-900">-</h3>
+                        <p class="text-xs text-slate-500 mt-1">
                             الرقم التدريبي: <span id="res-id" class="font-bold text-slate-700">-</span> — 
                             <span id="res-dept" class="font-bold text-emerald-800">-</span>
                         </p>
                     </div>
-                    <div id="res-overall-badge" class="px-4 py-1.5 rounded-xl text-xs font-black self-start sm:self-center"></div>
+                    <div class="flex items-center gap-2 self-start sm:self-center">
+                        <div id="res-overall-badge" class="px-4 py-1.5 rounded-xl text-xs font-black"></div>
+                        <button onclick="window.print()" class="no-print px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors flex items-center gap-1.5" title="طباعة الكشف">
+                            <i class="fa-solid fa-print"></i>
+                            <span class="hidden sm:inline">طباعة</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- شريط الإشعار الفوري -->
-                <div id="res-alert-banner" class="p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3"></div>
+                <div id="res-alert-banner" class="p-4 rounded-2xl text-xs font-bold leading-relaxed flex items-start sm:items-center gap-3"></div>
             </div>
 
-            <!-- جدول المقررات وساعات ونسب الغياب -->
-            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="p-4 bg-slate-50 border-b border-slate-100">
-                    <h4 class="font-extrabold text-xs text-slate-700 flex items-center gap-2">
-                        <i class="fa-solid fa-book-bookmark text-emerald-800"></i>
-                        تفاصيل الغياب في المقررات المسجلة
-                    </h4>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-right text-xs">
-                        <thead class="bg-slate-100/70 text-slate-700 font-bold border-b border-slate-200">
-                            <tr>
-                                <th class="p-3">اسم المقرر</th>
-                                <th class="p-3 text-center">الشعبة</th>
-                                <th class="p-3 text-center">ساعات الغياب (الإجمالية)</th>
-                                <th class="p-3 text-center">نسبة الغياب</th>
-                                <th class="p-3 text-center">الحالة النظامية</th>
-                            </tr>
-                        </thead>
-                        <tbody id="courses-tbody" class="divide-y divide-slate-100 font-medium"></tbody>
-                    </table>
-                </div>
+            <!-- عنوان قسم بطاقات المقررات -->
+            <div class="flex items-center justify-between px-1">
+                <h4 class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-emerald-800"></i>
+                    <span>بطاقات المقررات ومؤشرات الغياب</span>
+                </h4>
+                <span id="courses-count-badge" class="text-[11px] font-bold bg-slate-200/80 text-slate-700 px-3 py-1 rounded-full">0 مقررات</span>
             </div>
+
+            <!-- شبكة بطاقات المقررات -->
+            <div id="courses-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
 
         </div>
 
@@ -159,66 +161,146 @@
                 if (data.success) {
                     document.getElementById('res-name').textContent = data.trainee_name;
                     document.getElementById('res-id').textContent = data.trainee_id;
-                    document.getElementById('res-dept').textContent = data.department;
+                    document.getElementById('res-dept').textContent = data.department || 'القسم التدريبي';
+                    document.getElementById('courses-count-badge').textContent = `${data.courses.length} مقررات مسجلة`;
 
-                    // تخصيص الإشعار العلوي بناء على أعلى نسبة وصل لها
+                    // فحص ما إذا كان المتدرب مطوي قيده أو محروماً في أي مقرر (حتى لو كانت الساعات 0)
+                    const hasFoldedEnrollment = data.courses.some(c => {
+                        const st = (c.status_text || '') + ' ' + (c.course_status || '');
+                        return st.includes('مطوي') || st.includes('طي قيد') || st.includes('قيده') || st.includes('انقطاع') || st.includes('إنقطاع');
+                    });
+
+                    const hasDangerCourse = data.courses.some(c => c.status_color === 'danger' || c.absence_rate >= 20.0);
+
                     const banner = document.getElementById('res-alert-banner');
                     const overallBadge = document.getElementById('res-overall-badge');
 
-                    if (data.max_rate >= 20.0) {
-                        banner.className = "p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3 bg-rose-50 text-rose-900 border border-rose-200";
-                        banner.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-lg text-rose-600"></i><span>تنبيه نظامي حرج: لقد بلغت نسبة الحرمان (20% فأكثر) في مقرر أو أكثر، وتعتبر محروماً من الاختبار النهائي نظاماً. يرجى مراجعة إدارة شؤون المتدربين فوراً.</span>';
+                    if (hasFoldedEnrollment) {
+                        banner.className = "p-4 rounded-2xl text-xs font-bold leading-relaxed flex items-start sm:items-center gap-3 bg-rose-50 text-rose-900 border-2 border-rose-300 shadow-sm";
+                        banner.innerHTML = '<i class="fa-solid fa-ban text-xl text-rose-600 mt-0.5 sm:mt-0"></i><span>تنبيه هام جداً: تشير السجلات التدريبية إلى أنه (تم طي قيد المتدرب من المعهد) بسبب الانقطاع عن التدريب. يرجى مراجعة وكالة شؤون المتدربين أو التوجيه والإرشاد بالمعهد فوراً.</span>';
+                        overallBadge.className = "px-4 py-1.5 rounded-xl text-xs font-black bg-rose-600 text-white shadow-sm";
+                        overallBadge.textContent = "مطوي قيده من المعهد";
+                    } else if (hasDangerCourse || data.max_rate >= 20.0) {
+                        banner.className = "p-4 rounded-2xl text-xs font-bold leading-relaxed flex items-start sm:items-center gap-3 bg-rose-50 text-rose-900 border border-rose-200";
+                        banner.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-lg text-rose-600 mt-0.5 sm:mt-0"></i><span>تنبيه نظامي حرج: لقد بلغت نسبة الحرمان (20% فأكثر) في مقرر أو أكثر، وتعتبر محروماً من دخول الاختبار النهائي نظاماً. يرجى مراجعة إدارة شؤون المتدربين فوراً.</span>';
                         overallBadge.className = "px-4 py-1.5 rounded-xl text-xs font-black bg-rose-100 text-rose-900 border border-rose-200";
                         overallBadge.textContent = "حالة حرمان نظامي";
                     } else if (data.max_rate >= 15.0) {
-                        banner.className = "p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3 bg-orange-50 text-orange-950 border border-orange-200";
-                        banner.innerHTML = '<i class="fa-solid fa-circle-exclamation text-lg text-orange-600"></i><span>تحذير شديد (إنذار ثانٍ): أنت قريب جداً من الحرمان النهائي (بلغت 15% أو أكثر)، احرص على عدم تفويت أي ساعة قادمة وراجع المرشد التدريبي.</span>';
+                        banner.className = "p-4 rounded-2xl text-xs font-bold leading-relaxed flex items-start sm:items-center gap-3 bg-orange-50 text-orange-950 border border-orange-200";
+                        banner.innerHTML = '<i class="fa-solid fa-circle-exclamation text-lg text-orange-600 mt-0.5 sm:mt-0"></i><span>تحذير شديد (إنذار ثانٍ): أنت قريب جداً من سقف الحرمان النهائي (بلغت 15% أو أكثر)، احرص على عدم غياب أي ساعة قادمة وراجع المرشد التدريبي.</span>';
                         overallBadge.className = "px-4 py-1.5 rounded-xl text-xs font-black bg-orange-100 text-orange-950 border border-orange-200";
                         overallBadge.textContent = "إنذار ثانٍ (خطر حرمان)";
                     } else if (data.max_rate >= 10.0) {
-                        banner.className = "p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3 bg-amber-50 text-amber-900 border border-amber-200";
-                        banner.innerHTML = '<i class="fa-solid fa-bell text-lg text-amber-600"></i><span>تنبيه (إنذار أول): لقد تجاوزت نسبة غيابك 10% في بعض المقررات، نرجو الالتزام التام بالتدريب لتجنب الإنذار الثاني.</span>';
+                        banner.className = "p-4 rounded-2xl text-xs font-bold leading-relaxed flex items-start sm:items-center gap-3 bg-amber-50 text-amber-900 border border-amber-200";
+                        banner.innerHTML = '<i class="fa-solid fa-bell text-lg text-amber-600 mt-0.5 sm:mt-0"></i><span>تنبيه (إنذار أول): لقد تجاوزت نسبة غيابك 10% في بعض المقررات، نرجو الالتزام التام بالحضور لتجنب الوصول للإنذار الثاني.</span>';
                         overallBadge.className = "px-4 py-1.5 rounded-xl text-xs font-black bg-amber-100 text-amber-900 border border-amber-200";
                         overallBadge.textContent = "إنذار أول";
                     } else {
-                        banner.className = "p-3.5 rounded-2xl text-xs font-bold leading-relaxed flex items-center gap-3 bg-emerald-50 text-emerald-900 border border-emerald-200";
-                        banner.innerHTML = '<i class="fa-solid fa-circle-check text-lg text-emerald-600"></i><span>وضعك التدريبي ممتاز: جميع نسب غيابك ضمن النطاق الآمن (أقل من 10%). استمر على هذا الالتزام!</span>';
+                        banner.className = "p-4 rounded-2xl text-xs font-bold leading-relaxed flex items-start sm:items-center gap-3 bg-emerald-50 text-emerald-900 border border-emerald-200";
+                        banner.innerHTML = '<i class="fa-solid fa-circle-check text-lg text-emerald-600 mt-0.5 sm:mt-0"></i><span>وضعك التدريبي ممتاز: جميع نسب غيابك ضمن النطاق الآمن (أقل من 10%). استمر على هذا الانضباط!</span>';
                         overallBadge.className = "px-4 py-1.5 rounded-xl text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-200";
                         overallBadge.textContent = "مستمر طبيعي (آمن)";
                     }
 
-                    // بناء جدول المقررات
-                    const tbody = document.getElementById('courses-tbody');
-                    tbody.innerHTML = '';
+                    // بناء بطاقات المقررات مع شريط التقدم الملون (Progress Bar)
+                    const container = document.getElementById('courses-cards-container');
+                    container.innerHTML = '';
 
                     data.courses.forEach(c => {
-                        let badgeClass = '';
-                        if (c.status_color === 'danger') {
+                        const rate = parseFloat(c.absence_rate) || 0;
+                        const statusStr = (c.status_text || '') + ' ' + (c.course_status || '');
+                        const isFolded = statusStr.includes('مطوي') || statusStr.includes('طي قيد') || statusStr.includes('قيده') || statusStr.includes('انقطاع') || statusStr.includes('إنقطاع');
+                        const isDanger = c.status_color === 'danger' || rate >= 20.0 || isFolded;
+
+                        // تحديد ألوان البطاقة وشريط التقدم بناءً على النسبة والحالة
+                        let cardBorder = 'border-slate-200';
+                        let badgeClass = 'bg-emerald-100 text-emerald-900 border border-emerald-200';
+                        let barColor = 'bg-emerald-500';
+                        let rateTextColor = 'text-emerald-700';
+                        let statusIcon = 'fa-circle-check text-emerald-600';
+
+                        if (isDanger) {
+                            cardBorder = 'border-rose-300 bg-rose-50/20';
                             badgeClass = 'bg-rose-100 text-rose-900 border border-rose-200';
-                        } else if (c.status_color === 'warning-high') {
+                            barColor = 'bg-rose-600';
+                            rateTextColor = 'text-rose-700';
+                            statusIcon = isFolded ? 'fa-ban text-rose-600' : 'fa-triangle-exclamation text-rose-600';
+                        } else if (c.status_color === 'warning-high' || rate >= 15.0) {
+                            cardBorder = 'border-orange-200';
                             badgeClass = 'bg-orange-100 text-orange-950 border border-orange-200';
-                        } else if (c.status_color === 'warning-low') {
+                            barColor = 'bg-orange-500';
+                            rateTextColor = 'text-orange-700';
+                            statusIcon = 'fa-circle-exclamation text-orange-500';
+                        } else if (c.status_color === 'warning-low' || rate >= 10.0) {
+                            cardBorder = 'border-amber-200';
                             badgeClass = 'bg-amber-100 text-amber-900 border border-amber-200';
-                        } else {
-                            badgeClass = 'bg-emerald-100 text-emerald-900 border border-emerald-200';
+                            barColor = 'bg-amber-400';
+                            rateTextColor = 'text-amber-700';
+                            statusIcon = 'fa-bell text-amber-500';
                         }
 
-                        const tr = document.createElement('tr');
-                        tr.className = "hover:bg-slate-50 transition-colors";
-                        tr.innerHTML = `
-                            <td class="p-3 text-slate-800 font-bold">${c.course_name}</td>
-                            <td class="p-3 text-center text-slate-500 font-mono">${c.section_no || '-'}</td>
-                            <td class="p-3 text-center text-slate-700 font-bold">${c.absence_hours} ساعة</td>
-                            <td class="p-3 text-center font-extrabold text-sm ${c.absence_rate >= 15 ? 'text-rose-700' : (c.absence_rate >= 10 ? 'text-amber-700' : 'text-emerald-700')}">
-                                ${c.absence_rate}%
-                            </td>
-                            <td class="p-3 text-center">
-                                <span class="inline-block px-3 py-1 rounded-xl text-[10.5px] font-black ${badgeClass}">
-                                    ${c.status_text}
+                        // حساب عرض شريط التقدم (20% تمثل 100% من سقف الحرمان ليكون المؤشر واضحاً ودقيقاً)
+                        // وإذا كان مطوي قيده أو محروماً يمتلئ الشريط بالكامل 100% باللون الأحمر
+                        let progressWidth = 0;
+                        if (isDanger) {
+                            progressWidth = 100;
+                        } else {
+                            progressWidth = Math.min(100, Math.round((rate / 20.0) * 100));
+                            if (rate > 0 && progressWidth < 6) progressWidth = 6; // حد أدنى لظهور اللون عند وجود غياب بسيط
+                        }
+
+                        const card = document.createElement('div');
+                        card.className = `bg-white p-5 rounded-3xl border ${cardBorder} shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4`;
+                        card.innerHTML = `
+                            <!-- رأس البطاقة: اسم المقرر والشعبة والحالة -->
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="space-y-1">
+                                    <h5 class="font-black text-sm text-slate-800 leading-snug">${c.course_name}</h5>
+                                    <span class="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-lg">
+                                        <i class="fa-solid fa-hashtag text-[10px] text-slate-400"></i>
+                                        شعبة: <strong class="font-mono text-slate-700">${c.section_no || '-'}</strong>
+                                    </span>
+                                </div>
+                                <span class="px-3 py-1 rounded-xl text-[11px] font-black shrink-0 flex items-center gap-1.5 ${badgeClass}">
+                                    <i class="fa-solid ${statusIcon}"></i>
+                                    <span>${c.status_text}</span>
                                 </span>
-                            </td>
+                            </div>
+
+                            <!-- منتصف البطاقة: الساعات والنسبة المئوية -->
+                            <div class="grid grid-cols-2 gap-2 pt-1">
+                                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                    <span class="text-[11px] font-bold text-slate-500">ساعات الغياب</span>
+                                    <span class="text-sm font-black text-slate-800">${c.absence_hours} <small class="text-[10px] font-bold text-slate-500">ساعة</small></span>
+                                </div>
+                                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                    <span class="text-[11px] font-bold text-slate-500">نسبة الغياب</span>
+                                    <span class="text-base font-black ${rateTextColor}">${isFolded && rate === 0 ? 'مطوي قيده' : rate + '%'}</span>
+                                </div>
+                            </div>
+
+                            <!-- شريط التقدم الملون (Progress Bar) -->
+                            <div class="space-y-1.5 pt-1">
+                                <div class="flex items-center justify-between text-[10px] font-bold text-slate-400 px-0.5">
+                                    <span>مؤشر الغياب</span>
+                                    <span>${isFolded ? 'تم طي القيد من المقرر' : 'سقف الحرمان: 20%'}</span>
+                                </div>
+                                <div class="relative w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200/80 shadow-inner">
+                                    <!-- علامات إرشادية لعتبات الإنذار (10% و 15%) -->
+                                    <div class="absolute top-0 bottom-0 right-1/2 w-px bg-slate-300/70 z-10" title="10% إنذار أول"></div>
+                                    <div class="absolute top-0 bottom-0 right-3/4 w-px bg-slate-300/70 z-10" title="15% إنذار ثانٍ"></div>
+                                    <!-- الشريط المتحرك -->
+                                    <div class="h-full ${barColor} rounded-full transition-all duration-700 ease-out" style="width: ${progressWidth}%"></div>
+                                </div>
+                                <div class="flex items-center justify-between text-[10px] font-bold text-slate-400 px-0.5">
+                                    <span class="text-emerald-700">0% آمن</span>
+                                    <span class="text-amber-600">10% إنذار 1</span>
+                                    <span class="text-orange-600">15% إنذار 2</span>
+                                    <span class="text-rose-600">20%+ حرمان</span>
+                                </div>
+                            </div>
                         `;
-                        tbody.appendChild(tr);
+                        container.appendChild(card);
                     });
 
                     resultBox.classList.remove('hidden');
