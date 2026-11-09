@@ -29,12 +29,10 @@ SCHEDULES_PDF = os.path.join(BASE_DIR, "schedules.pdf")
 TRAINERS_SCHEDULES_PDF = os.path.join(BASE_DIR, "trainers_schedules.pdf")
 DB_PATH = os.path.join(BASE_DIR, "attendance_archive.db")
 
-# إعدادات المزامنة التلقائية مع GitHub عبر فرع مستقل (storage) لمنع حذف أي ملف
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "tvtcaflaj2030/schedule").strip()
 STORAGE_BRANCH = "storage"
 
-# --- 2. دوال الحفظ والاسترجاع التلقائي من فرع storage في GitHub ---
 def _github_headers():
     return {
         "Authorization": f"Bearer {GITHUB_TOKEN}",
@@ -66,7 +64,6 @@ def ensure_storage_branch():
     return False
 
 def sync_file_to_github(local_path, repo_filename, commit_msg="Auto-backup file"):
-    """رفع أي ملف (PDF, Excel, DB) إلى فرع storage في GitHub بشكل دائم"""
     if not GITHUB_TOKEN or not os.path.exists(local_path):
         return False
     try:
@@ -148,7 +145,6 @@ def restore_all_from_github():
             if restore_file_from_github(target_path, f"{base_name}{ext}"):
                 break
 
-# --- 3. نظام الحماية من تخمين كلمات المرور ---
 _LOGIN_ATTEMPTS = {}
 MAX_ATTEMPTS = 5
 LOCKOUT_SECONDS = 600
@@ -174,7 +170,6 @@ def record_failed_attempt(ip):
 def clear_failed_attempts(ip):
     _LOGIN_ATTEMPTS.pop(ip, None)
 
-# --- 4. التخزين المؤقت الذكي ---
 _DATAFRAME_CACHE = {
     "absence": {"mtime": None, "path": None, "df": None},
     "so09": {"mtime": None, "path": None, "df": None}
@@ -216,7 +211,6 @@ def is_folded_or_deprived_text(status_str):
     keywords = ["مطوي", "طي قيد", "قيده", "محروم", "حرمان", "منقطع", "انقطاع", "إنقطاع", "مفصول"]
     return any(k in status_str for k in keywords)
 
-# --- 5. إدارة قاعدة البيانات ---
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
@@ -382,7 +376,6 @@ def find_trainer_pages(pdf_path, search_term):
     except Exception:
         return []
 
-# --- الواجهات العامة للمتدربين ---
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -525,8 +518,6 @@ def get_schedule_image():
     except Exception as e:
         return str(e), 500
 
-# --- بوابة المدربين والمسؤولين ---
-
 @app.route("/trainer")
 def trainer_login_page():
     return render_template("trainer_login.html")
@@ -666,6 +657,7 @@ def trainer_logout():
     session.pop("trainer_role", None)
     return redirect(url_for("trainer_login_page"))
 
+# --- API موحد ومحسن لفرز الكشوفات يدعم فلتر البرنامج / الدبلوم ---
 @app.route("/api/absence_records_query")
 def api_absence_records_query():
     source = request.args.get("source", "")
@@ -682,7 +674,7 @@ def api_absence_records_query():
 
     df = load_absence_dataframe()
     if df is None or df.empty:
-        return jsonify({"success": False, "records": [], "stats": {}, "courses": []})
+        return jsonify({"success": False, "records": [], "stats": {}, "courses": [], "programs": []})
 
     filtered = df.copy()
     rate_col = 'إجمالي نسبة الغياب بعذر وبدون عذر'
@@ -701,11 +693,17 @@ def api_absence_records_query():
             filtered = filtered.iloc[0:0]
 
     dept_filter = request.args.get("department", "ALL")
+    program_filter = request.args.get("program", "ALL")
     course_filter = request.args.get("course", "ALL")
     status_filter = request.args.get("status", "ALL")
 
     if dept_filter != "ALL" and 'اسم القسم' in filtered.columns:
         filtered = filtered[filtered['اسم القسم'] == dept_filter]
+
+    available_programs = sorted([p for p in filtered['اسم البرنامج'].dropna().unique() if str(p).strip()]) if 'اسم البرنامج' in filtered.columns else []
+
+    if program_filter != "ALL" and 'اسم البرنامج' in filtered.columns:
+        filtered = filtered[filtered['اسم البرنامج'] == program_filter]
 
     available_courses = sorted([c for c in filtered['اسم المقرر'].dropna().unique() if str(c).strip()]) if 'اسم المقرر' in filtered.columns else []
 
@@ -765,6 +763,7 @@ def api_absence_records_query():
             "trainee_id": str(row.get('رقم المتدرب', '')),
             "trainee_name": str(row.get('اسم المتدرب', '')),
             "department": str(row.get('اسم القسم', '')),
+            "program": str(row.get('اسم البرنامج', '')),
             "course_name": str(row.get('اسم المقرر', '')),
             "section_no": str(row.get('أرقام شعب المقرر', '')),
             "absence_rate": round(rate, 2),
@@ -777,6 +776,7 @@ def api_absence_records_query():
         "success": True,
         "records": records,
         "courses": available_courses,
+        "programs": available_programs,
         "stats": {
             "total_records": total_records,
             "total_trainees": total_unique_trainees,
@@ -921,7 +921,7 @@ def admin_delete_file(file_type):
             if os.path.exists(p):
                 try: os.remove(p)
                 except Exception: pass
-            delete_file_from_github(f"so09_data{ext}")
+            delete_file_from_github(f"absence_data{ext}")
 
     invalidate_caches()
     return redirect(url_for("admin"))
@@ -1003,16 +1003,20 @@ def absence_dashboard():
         return redirect(url_for("admin"))
     df = load_absence_dataframe()
     departments = []
+    programs = []
     courses = []
     if df is not None and not df.empty:
         if 'اسم القسم' in df.columns:
             departments = sorted([d for d in df['اسم القسم'].dropna().unique() if str(d).strip()])
+        if 'اسم البرنامج' in df.columns:
+            programs = sorted([p for p in df['اسم البرنامج'].dropna().unique() if str(p).strip()])
         if 'اسم المقرر' in df.columns:
             courses = sorted([c for c in df['اسم المقرر'].dropna().unique() if str(c).strip()])
 
     return render_template("admin_absence_dashboard.html",
                            has_data=df is not None and not df.empty,
                            departments=departments,
+                           programs=programs,
                            courses=courses)
 
 @app.route('/admin/attendance')
