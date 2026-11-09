@@ -6,3 +6,4 @@ gunicorn
 reportlab
 python-bidi
 arabic-reshaper
+requests
