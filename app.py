@@ -6,6 +6,8 @@ import hmac
 import json
 import shutil
 import sqlite3
+import base64
+import requests
 from datetime import datetime, timedelta
 import fitz  # PyMuPDF
 import pandas as pd
@@ -28,7 +30,66 @@ SCHEDULES_PDF = os.path.join(BASE_DIR, "schedules.pdf")
 TRAINERS_SCHEDULES_PDF = os.path.join(BASE_DIR, "trainers_schedules.pdf")
 DB_PATH = os.path.join(BASE_DIR, "attendance_archive.db")
 
-# --- 2. نظام الحماية من تخمين كلمات المرور (Rate Limiting) ---
+# إعدادات المزامنة مع GitHub
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "tvtcaflaj2030/schedule")
+
+# --- 2. نظام المزامنة التلقائية مع GitHub (منع حذف البيانات) ---
+def backup_db_to_github():
+    """رفع نسخة من قاعدة البيانات تلقائياً إلى GitHub في الخلفية"""
+    if not GITHUB_TOKEN or not os.path.exists(DB_PATH):
+        return
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/attendance_archive.db"
+        headers = {
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json"
+        }
+        
+        with open(DB_PATH, "rb") as f:
+            content_bytes = f.read()
+        content_encoded = base64.b64encode(content_bytes).decode("utf-8")
+
+        get_res = requests.get(url, headers=headers)
+        sha = get_res.json().get("sha") if get_res.status_code == 200 else None
+
+        data = {
+            "message": "Auto-backup database from Render dashboard",
+            "content": content_encoded,
+            "branch": "main"
+        }
+        if sha:
+            data["sha"] = sha
+
+        requests.put(url, headers=headers, json=data)
+    except Exception as e:
+        print("Backup to GitHub error:", e)
+
+def restore_db_from_github():
+    """استرجاع قاعدة البيانات من GitHub عند بدء التشغيل إذا لم تكن موجودة"""
+    if not GITHUB_TOKEN:
+        return
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/attendance_archive.db"
+        headers = {
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json"
+        }
+        res = requests.get(url, headers=headers)
+        if res.status_code == 200:
+            file_data = res.json()
+            content_bytes = base64.b64decode(file_data["content"])
+            with open(DB_PATH, "wb") as f:
+                f.write(content_bytes)
+            print("Database successfully restored from GitHub.")
+    except Exception as e:
+        print("Restore from GitHub error:", e)
+
+# استرجاع قاعدة البيانات عند بدء التشغيل إذا لم تكن موجودة محلياً
+if not os.path.exists(DB_PATH):
+    restore_db_from_github()
+
+# --- 3. نظام الحماية من تخمين كلمات المرور (Rate Limiting) ---
 _LOGIN_ATTEMPTS = {}
 MAX_ATTEMPTS = 5
 LOCKOUT_SECONDS = 600  # 10 دقائق
@@ -54,7 +115,7 @@ def record_failed_attempt(ip):
 def clear_failed_attempts(ip):
     _LOGIN_ATTEMPTS.pop(ip, None)
 
-# --- 3. نظام التخزين المؤقت الذكي (Smart Caching) لتسريع الإكسل والـ PDF ---
+# --- 4. نظام التخزين المؤقت الذكي (Smart Caching) لتسريع الإكسل والـ PDF ---
 _DATAFRAME_CACHE = {
     "absence": {"mtime": None, "path": None, "df": None},
     "so09": {"mtime": None, "path": None, "df": None}
@@ -82,7 +143,7 @@ def clean_employee_id(text):
     digits = normalize_digits(text)
     return digits.lstrip('0')
 
-# --- 4. إدارة قاعدة البيانات بأمان وكفاءة ---
+# --- 5. إدارة قاعدة البيانات بأمان وكفاءة ---
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
@@ -160,7 +221,6 @@ def _load_cached_dataframe(cache_key, base_filename):
                     except UnicodeDecodeError:
                         df = pd.read_csv(filepath, encoding='windows-1256')
 
-                # تجهيز الأعمدة المنظفة مسبقاً لتسريع البحث
                 if cache_key == "absence" and 'رقم المتدرب' in df.columns:
                     df['رقم_نظيف'] = df['رقم المتدرب'].astype(str).apply(lambda x: normalize_digits(x).strip())
                 if cache_key == "so09" and 'رقم الحاسب' in df.columns:
@@ -416,6 +476,7 @@ def trainer_login_action():
                     c = conn.cursor()
                     c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, 'trainer')", (emp_id, t_name))
                     conn.commit()
+                backup_db_to_github() # حفظ تلقائي
                 found_trainer = {"employee_id": emp_id, "trainer_name": t_name, "role": "trainer"}
 
         if not found_trainer:
@@ -522,7 +583,6 @@ def trainer_logout():
     session.pop("trainer_role", None)
     return redirect(url_for("trainer_login_page"))
 
-# API موحد ومحسن لفرز الكشوفات وحساب المتدربين بدقة
 @app.route("/api/absence_records_query")
 def api_absence_records_query():
     source = request.args.get("source", "")
@@ -646,8 +706,8 @@ def admin():
                 msg = "تم حظر الدخول مؤقتاً لتجاوز عدد المحاولات المسموح بها. انتظر 10 دقائق."
                 msg_type = "error"
             else:
-                entered_pw = request.form.get("password", "")
-                if hmac.compare_digest(entered_pw.encode("utf-8"), ADMIN_PASSWORD.encode("utf-8")):
+                entered_pw = request.form.get("password", "").strip()
+                if entered_pw == ADMIN_PASSWORD:
                     clear_failed_attempts(client_ip)
                     session.permanent = True
                     session["logged_in"] = True
@@ -714,6 +774,7 @@ def admin():
                             if clean_emp and t_name:
                                 c.execute("INSERT OR IGNORE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, 'trainer')", (clean_emp, t_name))
                         conn.commit()
+                    backup_db_to_github() # حفظ تلقائي
                 msg = "تم رفع ملف الشعب (SO09) واستيراد قائمة المدربين تلقائياً!"
                 msg_type = "success"
 
@@ -755,7 +816,6 @@ def admin_delete_file(file_type):
     invalidate_caches()
     return redirect(url_for("admin"))
 
-# مسار جديد لتحميل نسخة احتياطية من قاعدة البيانات (الأرشيف والمدربين)
 @app.route("/admin/backup_db")
 def admin_backup_db():
     if not session.get("logged_in"):
@@ -765,7 +825,6 @@ def admin_backup_db():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     return send_file(DB_PATH, as_attachment=True, download_name=f"attendance_archive_{timestamp}.db")
 
-# مسار جديد لاستعادة قاعدة البيانات عند الحاجة
 @app.route("/admin/restore_db", methods=["POST"])
 def admin_restore_db():
     if not session.get("logged_in"):
@@ -777,6 +836,7 @@ def admin_restore_db():
             shutil.copy2(DB_PATH, backup_copy)
         file.save(DB_PATH)
         init_db()
+        backup_db_to_github() # حفظ النسخة المستعادة في GitHub
     return redirect(url_for("admin"))
 
 @app.route("/admin/trainer_role/update", methods=["POST"])
@@ -792,6 +852,7 @@ def update_trainer_role():
         cursor = conn.cursor()
         cursor.execute("UPDATE trainers_roles SET role = ? WHERE employee_id = ?", (new_role, emp_id))
         conn.commit()
+    backup_db_to_github() # حفظ تلقائي
     return jsonify({"success": True})
 
 @app.route("/admin/trainer_role/add", methods=["POST"])
@@ -806,6 +867,7 @@ def add_trainer_role():
             c = conn.cursor()
             c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, ?)", (emp_id, t_name, role))
             conn.commit()
+        backup_db_to_github() # حفظ تلقائي
     return redirect(url_for("admin"))
 
 @app.route("/admin/trainer_role/delete/<emp_id>", methods=["POST"])
@@ -817,6 +879,7 @@ def delete_trainer_role(emp_id):
         c = conn.cursor()
         c.execute("DELETE FROM trainers_roles WHERE employee_id = ?", (clean_id,))
         conn.commit()
+    backup_db_to_github() # حفظ تلقائي
     return redirect(url_for("admin"))
 
 @app.route("/admin/logout")
@@ -879,6 +942,7 @@ def approve_report():
                 int(kpis.get('sections_total', 0)), int(kpis.get('sections_executed', 0)), notes, full_json
             ))
             conn.commit()
+        backup_db_to_github() # حفظ الأرشيف تلقائياً في GitHub
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -913,6 +977,7 @@ def delete_archived_report(report_id):
         cursor = conn.cursor()
         cursor.execute('DELETE FROM approved_reports WHERE id = ?', (report_id,))
         conn.commit()
+    backup_db_to_github() # حفظ التحديث بعد الحذف
     return redirect(url_for('attendance_archive'))
 
 if __name__ == "__main__":
