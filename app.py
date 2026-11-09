@@ -1,21 +1,75 @@
 import io
 import re
 import os
+import time
+import hmac
 import json
+import shutil
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 import fitz  # PyMuPDF
 import pandas as pd
 from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for, session
 
 app = Flask(__name__)
-app.secret_key = "secret_admin_key_turki_aflaj"
-ADMIN_PASSWORD = "turki2026"
+
+# --- 1. إعدادات الأمان ومتغيرات البيئة ---
+app.secret_key = os.environ.get("SECRET_KEY", "secret_admin_key_turki_aflaj_default_change_me")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", ".")
+
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8)
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEDULES_PDF = os.path.join(BASE_DIR, "schedules.pdf")
 TRAINERS_SCHEDULES_PDF = os.path.join(BASE_DIR, "trainers_schedules.pdf")
 DB_PATH = os.path.join(BASE_DIR, "attendance_archive.db")
+
+# --- 2. نظام الحماية من تخمين كلمات المرور (Rate Limiting) ---
+_LOGIN_ATTEMPTS = {}
+MAX_ATTEMPTS = 5
+LOCKOUT_SECONDS = 600  # 10 دقائق
+
+def is_rate_limited(ip):
+    now = time.time()
+    record = _LOGIN_ATTEMPTS.get(ip)
+    if not record:
+        return False
+    attempts, last_time = record
+    if now - last_time > LOCKOUT_SECONDS:
+        _LOGIN_ATTEMPTS.pop(ip, None)
+        return False
+    return attempts >= MAX_ATTEMPTS
+
+def record_failed_attempt(ip):
+    now = time.time()
+    attempts, last_time = _LOGIN_ATTEMPTS.get(ip, (0, now))
+    if now - last_time > LOCKOUT_SECONDS:
+        attempts = 0
+    _LOGIN_ATTEMPTS[ip] = (attempts + 1, now)
+
+def clear_failed_attempts(ip):
+    _LOGIN_ATTEMPTS.pop(ip, None)
+
+# --- 3. نظام التخزين المؤقت الذكي (Smart Caching) لتسريع الإكسل والـ PDF ---
+_DATAFRAME_CACHE = {
+    "absence": {"mtime": None, "path": None, "df": None},
+    "so09": {"mtime": None, "path": None, "df": None}
+}
+
+_PDF_INDEX_CACHE = {
+    SCHEDULES_PDF: {"mtime": None, "pages_norm": []},
+    TRAINERS_SCHEDULES_PDF: {"mtime": None, "pages_raw": [], "pages_norm": [], "pages_no_zeros": []}
+}
+
+def invalidate_caches():
+    for key in _DATAFRAME_CACHE:
+        _DATAFRAME_CACHE[key] = {"mtime": None, "path": None, "df": None}
+    for pdf_path in _PDF_INDEX_CACHE:
+        _PDF_INDEX_CACHE[pdf_path]["mtime"] = None
 
 def normalize_digits(text):
     if not text:
@@ -28,37 +82,43 @@ def clean_employee_id(text):
     digits = normalize_digits(text)
     return digits.lstrip('0')
 
+# --- 4. إدارة قاعدة البيانات بأمان وكفاءة ---
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH, timeout=15)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
+    return conn
+
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS approved_reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            approval_date TEXT NOT NULL,
-            training_week TEXT NOT NULL,
-            training_term TEXT NOT NULL,
-            department TEXT NOT NULL,
-            trainers_count INTEGER DEFAULT 0,
-            trainers_attendance_rate REAL DEFAULT 0,
-            trainees_count INTEGER DEFAULT 0,
-            trainees_present_count INTEGER DEFAULT 0,
-            trainees_attendance_rate REAL DEFAULT 0,
-            sections_total INTEGER DEFAULT 0,
-            sections_executed INTEGER DEFAULT 0,
-            notes TEXT,
-            full_data_json TEXT NOT NULL
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS trainers_roles (
-            employee_id TEXT PRIMARY KEY,
-            trainer_name TEXT NOT NULL,
-            department TEXT DEFAULT '',
-            role TEXT DEFAULT 'trainer'
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS approved_reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                approval_date TEXT NOT NULL,
+                training_week TEXT NOT NULL,
+                training_term TEXT NOT NULL,
+                department TEXT NOT NULL,
+                trainers_count INTEGER DEFAULT 0,
+                trainers_attendance_rate REAL DEFAULT 0,
+                trainees_count INTEGER DEFAULT 0,
+                trainees_present_count INTEGER DEFAULT 0,
+                trainees_attendance_rate REAL DEFAULT 0,
+                sections_total INTEGER DEFAULT 0,
+                sections_executed INTEGER DEFAULT 0,
+                notes TEXT,
+                full_data_json TEXT NOT NULL
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS trainers_roles (
+                employee_id TEXT PRIMARY KEY,
+                trainer_name TEXT NOT NULL,
+                department TEXT DEFAULT '',
+                role TEXT DEFAULT 'trainer'
+            )
+        ''')
+        conn.commit()
 
 init_db()
 
@@ -78,52 +138,53 @@ TRAINER_SERVICES = [
     {"title": "بوابة للموظفين", "url": "https://serv.tvtc.gov.sa/", "icon": "fa-id-card"}
 ]
 
-def load_absence_dataframe():
+def _load_cached_dataframe(cache_key, base_filename):
     possible_files = [
-        os.path.join(BASE_DIR, "absence_data.xlsx"),
-        os.path.join(BASE_DIR, "absence_data.xls"),
-        os.path.join(BASE_DIR, "absence_data.csv")
+        os.path.join(BASE_DIR, f"{base_filename}.xlsx"),
+        os.path.join(BASE_DIR, f"{base_filename}.xls"),
+        os.path.join(BASE_DIR, f"{base_filename}.csv")
     ]
     for filepath in possible_files:
         if os.path.exists(filepath):
             try:
+                mtime = os.path.getmtime(filepath)
+                cache_entry = _DATAFRAME_CACHE[cache_key]
+                if cache_entry["path"] == filepath and cache_entry["mtime"] == mtime and cache_entry["df"] is not None:
+                    return cache_entry["df"].copy()
+
                 if filepath.endswith(('.xlsx', '.xls')):
-                    return pd.read_excel(filepath)
+                    df = pd.read_excel(filepath)
                 else:
                     try:
-                        return pd.read_csv(filepath, encoding='utf-8')
+                        df = pd.read_csv(filepath, encoding='utf-8')
                     except UnicodeDecodeError:
-                        return pd.read_csv(filepath, encoding='windows-1256')
+                        df = pd.read_csv(filepath, encoding='windows-1256')
+
+                # تجهيز الأعمدة المنظفة مسبقاً لتسريع البحث
+                if cache_key == "absence" and 'رقم المتدرب' in df.columns:
+                    df['رقم_نظيف'] = df['رقم المتدرب'].astype(str).apply(lambda x: normalize_digits(x).strip())
+                if cache_key == "so09" and 'رقم الحاسب' in df.columns:
+                    df['emp_clean'] = df['رقم الحاسب'].astype(str).apply(clean_employee_id)
+
+                _DATAFRAME_CACHE[cache_key] = {"mtime": mtime, "path": filepath, "df": df}
+                return df.copy()
             except Exception:
                 continue
     return None
 
+def load_absence_dataframe():
+    return _load_cached_dataframe("absence", "absence_data")
+
 def load_so09_dataframe():
-    possible_files = [
-        os.path.join(BASE_DIR, "so09_data.xlsx"),
-        os.path.join(BASE_DIR, "so09_data.xls"),
-        os.path.join(BASE_DIR, "so09_data.csv")
-    ]
-    for filepath in possible_files:
-        if os.path.exists(filepath):
-            try:
-                if filepath.endswith(('.xlsx', '.xls')):
-                    return pd.read_excel(filepath)
-                else:
-                    try:
-                        return pd.read_csv(filepath, encoding='utf-8')
-                    except UnicodeDecodeError:
-                        return pd.read_csv(filepath, encoding='windows-1256')
-            except Exception:
-                continue
-    return None
+    return _load_cached_dataframe("so09", "so09_data")
 
 def get_trainer_sections(emp_id):
     df_sec = load_so09_dataframe()
     if df_sec is None or df_sec.empty:
         return []
     clean_target = clean_employee_id(emp_id)
-    df_sec['emp_clean'] = df_sec['رقم الحاسب'].astype(str).apply(clean_employee_id)
+    if 'emp_clean' not in df_sec.columns:
+        df_sec['emp_clean'] = df_sec['رقم الحاسب'].astype(str).apply(clean_employee_id)
     matched = df_sec[df_sec['emp_clean'] == clean_target]
     if matched.empty:
         return []
@@ -134,21 +195,29 @@ def get_trainer_sections(emp_id):
             sections.append(s_str)
     return list(set(sections))
 
+def _ensure_student_pdf_index(pdf_path):
+    if not os.path.exists(pdf_path):
+        return []
+    mtime = os.path.getmtime(pdf_path)
+    cache = _PDF_INDEX_CACHE.setdefault(pdf_path, {"mtime": None, "pages_norm": []})
+    if cache["mtime"] == mtime and cache["pages_norm"]:
+        return cache["pages_norm"]
+    pages_norm = []
+    with fitz.open(pdf_path) as doc:
+        for page_num in range(len(doc)):
+            pages_norm.append(normalize_digits(doc[page_num].get_text()))
+    cache["mtime"] = mtime
+    cache["pages_norm"] = pages_norm
+    return pages_norm
+
 def find_student_pages(pdf_path, trainee_id):
     clean_id = normalize_digits(trainee_id).strip()
     if len(clean_id) < 9 or not clean_id.isdigit():
         return []
     id_pattern = re.compile(rf'(?<!\d){re.escape(clean_id)}(?!\d)|(?<!\d){re.escape(clean_id[::-1])}(?!\d)')
-    matched_pages = []
-    if not os.path.exists(pdf_path):
-        return []
     try:
-        doc = fitz.open(pdf_path)
-        for page_num in range(len(doc)):
-            clean_page_text = normalize_digits(doc[page_num].get_text())
-            if id_pattern.search(clean_page_text):
-                matched_pages.append(page_num)
-        return matched_pages
+        pages_norm = _ensure_student_pdf_index(pdf_path)
+        return [idx for idx, text in enumerate(pages_norm) if id_pattern.search(text)]
     except Exception:
         return []
 
@@ -156,15 +225,26 @@ def find_trainer_pages(pdf_path, search_term):
     if not search_term or not os.path.exists(pdf_path):
         return []
     term_clean = clean_employee_id(search_term)
-    matched_pages = []
     try:
-        doc = fitz.open(pdf_path)
-        for page_num in range(len(doc)):
-            text = doc[page_num].get_text()
-            norm_text = normalize_digits(text)
-            clean_text_no_zeros = re.sub(r'\b0+(\d+)\b', r'\1', norm_text)
-            if term_clean in clean_text_no_zeros or search_term in text:
-                matched_pages.append(page_num)
+        mtime = os.path.getmtime(pdf_path)
+        cache = _PDF_INDEX_CACHE.setdefault(pdf_path, {"mtime": None, "pages_raw": [], "pages_no_zeros": []})
+        if cache["mtime"] != mtime or not cache.get("pages_raw"):
+            pages_raw, pages_no_zeros = [], []
+            with fitz.open(pdf_path) as doc:
+                for page_num in range(len(doc)):
+                    raw_t = doc[page_num].get_text()
+                    norm_t = normalize_digits(raw_t)
+                    no_zeros_t = re.sub(r'\b0+(\d+)\b', r'\1', norm_t)
+                    pages_raw.append(raw_t)
+                    pages_no_zeros.append(no_zeros_t)
+            cache["mtime"] = mtime
+            cache["pages_raw"] = pages_raw
+            cache["pages_no_zeros"] = pages_no_zeros
+
+        matched_pages = []
+        for idx in range(len(cache["pages_raw"])):
+            if (term_clean and term_clean in cache["pages_no_zeros"][idx]) or (search_term in cache["pages_raw"][idx]):
+                matched_pages.append(idx)
         return matched_pages
     except Exception:
         return []
@@ -196,7 +276,8 @@ def search_absence():
     if df is None or df.empty:
         return jsonify({"success": False, "message": "لم يتم رفع أو تحديث بيانات الغياب من قبل الإدارة بعد."})
 
-    df['رقم_نظيف'] = df['رقم المتدرب'].astype(str).apply(lambda x: normalize_digits(x).strip())
+    if 'رقم_نظيف' not in df.columns:
+        df['رقم_نظيف'] = df['رقم المتدرب'].astype(str).apply(lambda x: normalize_digits(x).strip())
     matched = df[df['رقم_نظيف'] == trainee_id]
 
     if matched.empty:
@@ -214,12 +295,12 @@ def search_absence():
         section_no = row['أرقام شعب المقرر'] if 'أرقام شعب المقرر' in row else ''
         raw_rate = row.get('إجمالي نسبة الغياب بعذر وبدون عذر', 0)
         raw_hours = row.get('إجمالي ساعات الغياب بعذر وبدون عذر', 0)
-        
+
         try:
             rate = float(raw_rate)
         except (ValueError, TypeError):
             rate = 0.0
-            
+
         try:
             hours = float(raw_hours)
         except (ValueError, TypeError):
@@ -277,27 +358,26 @@ def get_schedule_image():
         return "معلمات غير صالحة أو الملف غير متوفر", 400
 
     try:
-        page_indices = [int(p) for p in pages_param.split(",") if p.isdigit()]
-        doc = fitz.open(SCHEDULES_PDF)
-        temp_doc = fitz.open()
-        for p_num in page_indices:
-            if 0 <= p_num < len(doc):
-                temp_doc.insert_pdf(doc, from_page=p_num, to_page=p_num)
-        if len(temp_doc) == 0:
-            return "لم يتم العثور على صفحات", 404
-        if len(temp_doc) == 1:
-            pix = temp_doc[0].get_pixmap(dpi=200)
-            img_bytes = pix.tobytes("png")
-        else:
-            combined_doc = fitz.open()
-            p_width = max(p.rect.width for p in temp_doc)
-            p_height = sum(p.rect.height for p in temp_doc)
-            new_page = combined_doc.new_page(width=p_width, height=p_height)
-            cur_y = 0
-            for p in temp_doc:
-                new_page.show_pdf_page(fitz.Rect(0, cur_y, p.rect.width, cur_y + p.rect.height), temp_doc, p.number)
-                cur_y += p.rect.height
-            img_bytes = new_page.get_pixmap(dpi=200).tobytes("png")
+        page_indices = [int(p) for p in pages_param.split(",") if p.isdigit()][:5]
+        with fitz.open(SCHEDULES_PDF) as doc, fitz.open() as temp_doc:
+            for p_num in page_indices:
+                if 0 <= p_num < len(doc):
+                    temp_doc.insert_pdf(doc, from_page=p_num, to_page=p_num)
+            if len(temp_doc) == 0:
+                return "لم يتم العثور على صفحات", 404
+            if len(temp_doc) == 1:
+                pix = temp_doc[0].get_pixmap(dpi=200)
+                img_bytes = pix.tobytes("png")
+            else:
+                with fitz.open() as combined_doc:
+                    p_width = max(p.rect.width for p in temp_doc)
+                    p_height = sum(p.rect.height for p in temp_doc)
+                    new_page = combined_doc.new_page(width=p_width, height=p_height)
+                    cur_y = 0
+                    for p in temp_doc:
+                        new_page.show_pdf_page(fitz.Rect(0, cur_y, p.rect.width, cur_y + p.rect.height), temp_doc, p.number)
+                        cur_y += p.rect.height
+                    img_bytes = new_page.get_pixmap(dpi=200).tobytes("png")
         return send_file(io.BytesIO(img_bytes), mimetype="image/png", download_name="schedule.png")
     except Exception as e:
         return str(e), 500
@@ -310,36 +390,41 @@ def trainer_login_page():
 
 @app.route("/trainer/login", methods=["POST"])
 def trainer_login_action():
+    client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    if is_rate_limited(client_ip):
+        return render_template("trainer_login.html", error="تم إيقاف المحاولات مؤقتاً بسبب تكرار الإدخال الخاطئ. حاول بعد 10 دقائق.")
+
     emp_id = clean_employee_id(request.form.get("employee_id", ""))
     if not emp_id:
         return render_template("trainer_login.html", error="يرجى إدخال الرقم الوظيفي.")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM trainers_roles WHERE employee_id = ?", (emp_id,))
-    user = cursor.fetchone()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM trainers_roles WHERE employee_id = ?", (emp_id,))
+        user = cursor.fetchone()
 
     if not user:
         df_sec = load_so09_dataframe()
         found_trainer = None
         if df_sec is not None and not df_sec.empty:
-            df_sec['emp_clean'] = df_sec['رقم الحاسب'].astype(str).apply(clean_employee_id)
+            if 'emp_clean' not in df_sec.columns:
+                df_sec['emp_clean'] = df_sec['رقم الحاسب'].astype(str).apply(clean_employee_id)
             matched = df_sec[df_sec['emp_clean'] == emp_id]
             if not matched.empty:
                 t_name = matched.iloc[0]['اسم المدرب']
-                conn = sqlite3.connect(DB_PATH)
-                c = conn.cursor()
-                c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, 'trainer')", (emp_id, t_name))
-                conn.commit()
-                conn.close()
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, 'trainer')", (emp_id, t_name))
+                    conn.commit()
                 found_trainer = {"employee_id": emp_id, "trainer_name": t_name, "role": "trainer"}
 
         if not found_trainer:
+            record_failed_attempt(client_ip)
             return render_template("trainer_login.html", error="الرقم الوظيفي غير مسجل في النظام. تواصل مع الإدارة لتفعيل حسابك.")
         user = found_trainer
 
+    clear_failed_attempts(client_ip)
+    session.permanent = True
     session["trainer_id"] = emp_id
     session["trainer_name"] = user["trainer_name"]
     session["trainer_role"] = user["role"]
@@ -386,14 +471,12 @@ def trainer_my_schedule_pdf():
         """, 404
 
     try:
-        doc = fitz.open(TRAINERS_SCHEDULES_PDF)
-        out_doc = fitz.open()
-        for p in pages:
-            if 0 <= p < len(doc):
-                out_doc.insert_pdf(doc, from_page=p, to_page=p)
-
         pdf_bytes = io.BytesIO()
-        out_doc.save(pdf_bytes)
+        with fitz.open(TRAINERS_SCHEDULES_PDF) as doc, fitz.open() as out_doc:
+            for p in pages:
+                if 0 <= p < len(doc):
+                    out_doc.insert_pdf(doc, from_page=p, to_page=p)
+            out_doc.save(pdf_bytes)
         pdf_bytes.seek(0)
         return send_file(pdf_bytes, mimetype="application/pdf", download_name=f"جدول_المدرب_{emp_id}.pdf")
     except Exception as e:
@@ -547,122 +630,153 @@ def api_absence_records_query():
         }
     })
 
-# --- لوحة الإدارة الرئيسية مع مسارات الحذف ---
+# --- لوحة الإدارة الرئيسية مع مسارات الحذف والنسخ الاحتياطي ---
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     msg = None
     msg_type = None
+    client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
 
     if request.method == "POST":
         action = request.form.get("action")
-        
+
         if action == "login":
-            if request.form.get("password") == ADMIN_PASSWORD:
-                session["logged_in"] = True
-            else:
-                msg = "كلمة المرور غير صحيحة"
+            if is_rate_limited(client_ip):
+                msg = "تم حظر الدخول مؤقتاً لتجاوز عدد المحاولات المسموح بها. انتظر 10 دقائق."
                 msg_type = "error"
+            else:
+                entered_pw = request.form.get("password", "")
+                if hmac.compare_digest(entered_pw.encode("utf-8"), ADMIN_PASSWORD.encode("utf-8")):
+                    clear_failed_attempts(client_ip)
+                    session.permanent = True
+                    session["logged_in"] = True
+                else:
+                    record_failed_attempt(client_ip)
+                    msg = "كلمة المرور غير صحيحة"
+                    msg_type = "error"
 
         elif action == "upload_schedule":
             if not session.get("logged_in"): return redirect(url_for("admin"))
             file = request.files.get("pdf_file")
-            if file and file.filename.endswith(".pdf"):
+            if file and file.filename.lower().endswith(".pdf"):
                 file.save(SCHEDULES_PDF)
+                invalidate_caches()
                 msg = "تم رفع وتحديث ملف جداول المتدربين بنجاح!"
                 msg_type = "success"
 
         elif action == "upload_trainers_schedule":
             if not session.get("logged_in"): return redirect(url_for("admin"))
             file = request.files.get("pdf_file")
-            if file and file.filename.endswith(".pdf"):
+            if file and file.filename.lower().endswith(".pdf"):
                 file.save(TRAINERS_SCHEDULES_PDF)
+                invalidate_caches()
                 msg = "تم رفع وتحديث ملف جداول المدربين بنجاح!"
                 msg_type = "success"
 
         elif action == "upload_absence_file":
             if not session.get("logged_in"): return redirect(url_for("admin"))
             file = request.files.get("absence_file")
-            if file and (file.filename.endswith(".csv") or file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
-                ext = os.path.splitext(file.filename)[1]
-                # حذف أي صيغة قديمة لملف الغياب أولاً
+            if file and file.filename.lower().endswith((".csv", ".xlsx", ".xls")):
+                ext = os.path.splitext(file.filename)[1].lower()
                 for old_ext in ['.xlsx', '.xls', '.csv']:
                     old_path = os.path.join(BASE_DIR, f"absence_data{old_ext}")
                     if os.path.exists(old_path):
                         try: os.remove(old_path)
-                        except: pass
+                        except Exception: pass
                 save_path = os.path.join(BASE_DIR, f"absence_data{ext}")
                 file.save(save_path)
+                invalidate_caches()
                 msg = "تم رفع وتحديث ملف نسب الغياب بنجاح!"
                 msg_type = "success"
 
         elif action == "upload_so09_file":
             if not session.get("logged_in"): return redirect(url_for("admin"))
             file = request.files.get("so09_file")
-            if file and (file.filename.endswith(".csv") or file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
-                ext = os.path.splitext(file.filename)[1]
+            if file and file.filename.lower().endswith((".csv", ".xlsx", ".xls")):
+                ext = os.path.splitext(file.filename)[1].lower()
                 for old_ext in ['.xlsx', '.xls', '.csv']:
                     old_path = os.path.join(BASE_DIR, f"so09_data{old_ext}")
                     if os.path.exists(old_path):
                         try: os.remove(old_path)
-                        except: pass
+                        except Exception: pass
                 save_path = os.path.join(BASE_DIR, f"so09_data{ext}")
                 file.save(save_path)
+                invalidate_caches()
                 df_sec = load_so09_dataframe()
                 if df_sec is not None and not df_sec.empty:
-                    conn = sqlite3.connect(DB_PATH)
-                    c = conn.cursor()
-                    for _, row in df_sec.iterrows():
-                        raw_emp = str(row.get('رقم الحاسب', ''))
-                        clean_emp = clean_employee_id(raw_emp)
-                        t_name = str(row.get('اسم المدرب', '')).strip()
-                        if clean_emp and t_name:
-                            c.execute("INSERT OR IGNORE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, 'trainer')", (clean_emp, t_name))
-                    conn.commit()
-                    conn.close()
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        for _, row in df_sec.iterrows():
+                            raw_emp = str(row.get('رقم الحاسب', ''))
+                            clean_emp = clean_employee_id(raw_emp)
+                            t_name = str(row.get('اسم المدرب', '')).strip()
+                            if clean_emp and t_name:
+                                c.execute("INSERT OR IGNORE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, 'trainer')", (clean_emp, t_name))
+                        conn.commit()
                 msg = "تم رفع ملف الشعب (SO09) واستيراد قائمة المدربين تلقائياً!"
                 msg_type = "success"
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM trainers_roles ORDER BY role DESC, trainer_name ASC")
-    trainers_list = cursor.fetchall()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM trainers_roles ORDER BY role DESC, trainer_name ASC")
+        trainers_list = cursor.fetchall()
 
-    return render_template("admin.html", 
-                           logged_in=session.get("logged_in", False), 
+    return render_template("admin.html",
+                           logged_in=session.get("logged_in", False),
                            trainers_list=trainers_list,
-                           msg=msg, 
+                           msg=msg,
                            msg_type=msg_type)
 
-# مسار مخصص لحذف وتصفير أي ملف مرفوع بضغطة زر
 @app.route("/admin/delete_file/<file_type>", methods=["POST"])
 def admin_delete_file(file_type):
     if not session.get("logged_in"):
         return redirect(url_for("admin"))
 
-    if file_type == "schedules":
-        if os.path.exists(SCHEDULES_PDF):
-            try: os.remove(SCHEDULES_PDF)
-            except: pass
-    elif file_type == "trainers_schedules":
-        if os.path.exists(TRAINERS_SCHEDULES_PDF):
-            try: os.remove(TRAINERS_SCHEDULES_PDF)
-            except: pass
+    if file_type == "schedules" and os.path.exists(SCHEDULES_PDF):
+        try: os.remove(SCHEDULES_PDF)
+        except Exception: pass
+    elif file_type == "trainers_schedules" and os.path.exists(TRAINERS_SCHEDULES_PDF):
+        try: os.remove(TRAINERS_SCHEDULES_PDF)
+        except Exception: pass
     elif file_type == "absence":
         for ext in ['.xlsx', '.xls', '.csv']:
             p = os.path.join(BASE_DIR, f"absence_data{ext}")
             if os.path.exists(p):
                 try: os.remove(p)
-                except: pass
+                except Exception: pass
     elif file_type == "so09":
         for ext in ['.xlsx', '.xls', '.csv']:
             p = os.path.join(BASE_DIR, f"so09_data{ext}")
             if os.path.exists(p):
                 try: os.remove(p)
-                except: pass
+                except Exception: pass
 
+    invalidate_caches()
+    return redirect(url_for("admin"))
+
+# مسار جديد لتحميل نسخة احتياطية من قاعدة البيانات (الأرشيف والمدربين)
+@app.route("/admin/backup_db")
+def admin_backup_db():
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
+    if not os.path.exists(DB_PATH):
+        return "قاعدة البيانات غير موجودة", 404
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    return send_file(DB_PATH, as_attachment=True, download_name=f"attendance_archive_{timestamp}.db")
+
+# مسار جديد لاستعادة قاعدة البيانات عند الحاجة
+@app.route("/admin/restore_db", methods=["POST"])
+def admin_restore_db():
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
+    file = request.files.get("db_file")
+    if file and file.filename.lower().endswith(".db"):
+        backup_copy = f"{DB_PATH}.bak"
+        if os.path.exists(DB_PATH):
+            shutil.copy2(DB_PATH, backup_copy)
+        file.save(DB_PATH)
+        init_db()
     return redirect(url_for("admin"))
 
 @app.route("/admin/trainer_role/update", methods=["POST"])
@@ -674,11 +788,10 @@ def update_trainer_role():
     if not emp_id:
         return jsonify({"success": False, "message": "رقم المدرب مفقود"})
 
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE trainers_roles SET role = ? WHERE employee_id = ?", (new_role, emp_id))
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE trainers_roles SET role = ? WHERE employee_id = ?", (new_role, emp_id))
+        conn.commit()
     return jsonify({"success": True})
 
 @app.route("/admin/trainer_role/add", methods=["POST"])
@@ -689,11 +802,10 @@ def add_trainer_role():
     t_name = request.form.get("trainer_name", "").strip()
     role = request.form.get("role", "trainer")
     if emp_id and t_name:
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, ?)", (emp_id, t_name, role))
-        conn.commit()
-        conn.close()
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, ?)", (emp_id, t_name, role))
+            conn.commit()
     return redirect(url_for("admin"))
 
 @app.route("/admin/trainer_role/delete/<emp_id>", methods=["POST"])
@@ -701,11 +813,10 @@ def delete_trainer_role(emp_id):
     if not session.get("logged_in"):
         return redirect(url_for("admin"))
     clean_id = clean_employee_id(emp_id)
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("DELETE FROM trainers_roles WHERE employee_id = ?", (clean_id,))
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("DELETE FROM trainers_roles WHERE employee_id = ?", (clean_id,))
+        conn.commit()
     return redirect(url_for("admin"))
 
 @app.route("/admin/logout")
@@ -752,23 +863,22 @@ def approve_report():
         data['approval_date'] = approval_date
         full_json = json.dumps(data, ensure_ascii=False)
 
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO approved_reports (
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO approved_reports (
+                    approval_date, training_week, training_term, department,
+                    trainers_count, trainers_attendance_rate,
+                    trainees_count, trainees_present_count, trainees_attendance_rate,
+                    sections_total, sections_executed, notes, full_data_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
                 approval_date, training_week, training_term, department,
-                trainers_count, trainers_attendance_rate,
-                trainees_count, trainees_present_count, trainees_attendance_rate,
-                sections_total, sections_executed, notes, full_data_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            approval_date, training_week, training_term, department,
-            int(kpis.get('trainers_count', 0)), float(kpis.get('trainers_attendance_rate', 0.0)),
-            int(kpis.get('trainees_count', 0)), int(kpis.get('trainees_present_count', 0)), float(kpis.get('trainees_attendance_rate', 0.0)),
-            int(kpis.get('sections_total', 0)), int(kpis.get('sections_executed', 0)), notes, full_json
-        ))
-        conn.commit()
-        conn.close()
+                int(kpis.get('trainers_count', 0)), float(kpis.get('trainers_attendance_rate', 0.0)),
+                int(kpis.get('trainees_count', 0)), int(kpis.get('trainees_present_count', 0)), float(kpis.get('trainees_attendance_rate', 0.0)),
+                int(kpis.get('sections_total', 0)), int(kpis.get('sections_executed', 0)), notes, full_json
+            ))
+            conn.commit()
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -777,24 +887,20 @@ def approve_report():
 def attendance_archive():
     if not session.get("logged_in"):
         return redirect(url_for("admin"))
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM approved_reports ORDER BY id DESC')
-    reports = cursor.fetchall()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM approved_reports ORDER BY id DESC')
+        reports = cursor.fetchall()
     return render_template('attendance_archive.html', reports=reports)
 
 @app.route('/admin/attendance/archive/<int:report_id>')
 def get_archived_report(report_id):
     if not session.get("logged_in"):
         return redirect(url_for("admin"))
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT full_data_json FROM approved_reports WHERE id = ?', (report_id,))
-    row = cursor.fetchone()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT full_data_json FROM approved_reports WHERE id = ?', (report_id,))
+        row = cursor.fetchone()
     if not row:
         return "التقرير غير موجود", 404
     return render_template('attendance_tracker.html', archived_json=row['full_data_json'], is_archived_view=True)
@@ -803,12 +909,13 @@ def get_archived_report(report_id):
 def delete_archived_report(report_id):
     if not session.get("logged_in"):
         return redirect(url_for("admin"))
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM approved_reports WHERE id = ?', (report_id,))
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM approved_reports WHERE id = ?', (report_id,))
+        conn.commit()
     return redirect(url_for('attendance_archive'))
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    is_debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=is_debug)
