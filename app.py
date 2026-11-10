@@ -7,7 +7,7 @@ import shutil
 import sqlite3
 import base64
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import fitz  # PyMuPDF
 import pandas as pd
 from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for, session
@@ -33,6 +33,15 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "tvtcaflaj2030/schedule").strip()
 STORAGE_BRANCH = "storage"
 
+# توقيت المملكة العربية السعودية (UTC+3)
+KSA_TZ = timezone(timedelta(hours=3))
+
+def get_ksa_now_formatted():
+    now_ksa = datetime.now(KSA_TZ)
+    period = "مساءً" if now_ksa.hour >= 12 else "صباحاً"
+    hour_12 = now_ksa.hour % 12 or 12
+    return f"{now_ksa.strftime('%Y/%m/%d')} الساعة {hour_12:02d}:{now_ksa.minute:02d} {period}"
+
 # --- 2. نظام المزامنة الموثوق مع GitHub مع كاشف الأخطاء ---
 def _github_headers():
     return {
@@ -42,7 +51,6 @@ def _github_headers():
     }
 
 def ensure_storage_branch():
-    """يتأكد من وجود فرع storage أو ينشئه، ويرجع (نجاح/فشل، رسالة التوضيح)"""
     if not GITHUB_TOKEN:
         return False, "متغير GITHUB_TOKEN غير موجود في إعدادات Render Environment"
     try:
@@ -53,7 +61,6 @@ def ensure_storage_branch():
         if res.status_code == 401:
             return False, "الرمز GITHUB_TOKEN غير صالح أو منتهي الصلاحية (401 Unauthorized)"
 
-        # جلب الفرع الافتراضي (main) لإنشاء فرع storage منه
         repo_url = f"https://api.github.com/repos/{GITHUB_REPO}"
         repo_res = requests.get(repo_url, headers=_github_headers(), timeout=15)
         if repo_res.status_code != 200:
@@ -80,7 +87,6 @@ def ensure_storage_branch():
         return False, f"خطأ اتصال بـ GitHub: {str(e)}"
 
 def sync_file_to_github(local_path, repo_filename, commit_msg="Auto-backup file"):
-    """يرفع الملف إلى فرع storage ويرجع (True/False, سبب الخطأ إن وجد)"""
     if not GITHUB_TOKEN:
         return False, "متغير GITHUB_TOKEN غير مضاف في Render"
     if not os.path.exists(local_path):
@@ -162,10 +168,8 @@ def restore_file_from_github(local_path, repo_filename, only_storage=False):
 def restore_all_from_github():
     if not GITHUB_TOKEN:
         return
-    # استرجاع قاعدة البيانات والملفات من فرع storage دائماً عند إقلاع السيرفر
     restore_file_from_github(DB_PATH, "attendance_archive.db", only_storage=True)
     restore_file_from_github(TRAINERS_SCHEDULES_PDF, "trainers_schedules.pdf", only_storage=True)
-    # schedules.pdf يُسحب من storage إن تم تحديثه، وإلا يبقى الملف الأصلي الموجود في main
     restore_file_from_github(SCHEDULES_PDF, "schedules.pdf", only_storage=True)
     for base_name in ["absence_data", "so09_data"]:
         for ext in ['.xlsx', '.xls', '.csv']:
@@ -241,7 +245,7 @@ def is_folded_or_deprived_text(status_str):
     keywords = ["مطوي", "طي قيد", "قيده", "محروم", "حرمان", "منقطع", "انقطاع", "إنقطاع", "مفصول"]
     return any(k in status_str for k in keywords)
 
-# --- 5. إدارة قاعدة البيانات ---
+# --- 5. إدارة قاعدة البيانات وحفظ تاريخ آخر تحديث ---
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
@@ -276,9 +280,46 @@ def init_db():
                 role TEXT DEFAULT 'trainer'
             )
         ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS system_meta (
+                meta_key TEXT PRIMARY KEY,
+                meta_value TEXT NOT NULL
+            )
+        ''')
         conn.commit()
 
-# استرجاع البيانات من GitHub أولاً ثم تهيئة الجداول
+def set_meta_value(key, value):
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO system_meta (meta_key, meta_value) VALUES (?, ?)", (key, value))
+        conn.commit()
+
+def get_meta_value(key, default=""):
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT meta_value FROM system_meta WHERE meta_key = ?", (key,))
+            row = cursor.fetchone()
+            if row and row["meta_value"]:
+                return row["meta_value"]
+    except Exception:
+        pass
+    return default
+
+def get_absence_last_update_text():
+    saved_time = get_meta_value("absence_last_update", "")
+    if saved_time:
+        return saved_time
+    # في حال وجود ملف مرفوع مسبقاً قبل التحديث، نقرأ وقت الملف بتوقيت السعودية
+    for ext in ['.xlsx', '.xls', '.csv']:
+        p = os.path.join(BASE_DIR, f"absence_data{ext}")
+        if os.path.exists(p):
+            mtime_dt = datetime.fromtimestamp(os.path.getmtime(p), KSA_TZ)
+            period = "مساءً" if mtime_dt.hour >= 12 else "صباحاً"
+            hour_12 = mtime_dt.hour % 12 or 12
+            return f"{mtime_dt.strftime('%Y/%m/%d')} الساعة {hour_12:02d}:{mtime_dt.minute:02d} {period}"
+    return ""
+
 restore_all_from_github()
 init_db()
 
@@ -419,7 +460,8 @@ def schedule_page():
 
 @app.route("/attendance")
 def attendance_page():
-    return render_template("attendance.html")
+    last_update = get_absence_last_update_text()
+    return render_template("attendance.html", absence_last_update=last_update)
 
 @app.route("/services")
 def services():
@@ -507,7 +549,8 @@ def search_absence():
         "department": department,
         "program": program,
         "max_rate": round(max_rate, 2),
-        "courses": courses
+        "courses": courses,
+        "last_update": get_absence_last_update_text()
     })
 
 @app.route("/search_schedule", methods=["POST"])
@@ -822,7 +865,6 @@ def api_absence_records_query():
         }
     })
 
-# --- أداة فحص وتشخيص الربط مع GitHub مباشرة من المتصفح ---
 @app.route("/admin/test_github")
 def admin_test_github():
     if not session.get("logged_in"):
@@ -841,7 +883,6 @@ def admin_test_github():
             <li><strong>فحص/إنشاء فرع التخزين (storage):</strong> <span style="color:{'green' if ok_branch else 'red'}; font-weight:bold;">{branch_msg}</span></li>
             <li><strong>تجربة حفظ قاعدة البيانات الآن:</strong> <span style="color:{'green' if ok_db else 'red'}; font-weight:bold;">{db_msg}</span></li>
         </ul>
-        <p style="font-size:13px; color:#475569;">إذا ظهرت العلامتان باللون الأخضر، افتح GitHub الآن وستجد أن عدد الفروع أصبح <strong>2 Branches</strong> (فرع main وفرع storage)، ولن تنحذف ملفاتك بعد الآن.</p>
         <a href="/admin" style="display:inline-block; margin-top:10px; padding:10px 20px; background:#065f46; color:#fff; text-decoration:none; border-radius:10px; font-weight:bold;">العودة للوحة الإدارة</a>
     </div>
     """
@@ -908,8 +949,14 @@ def admin():
                 save_path = os.path.join(BASE_DIR, f"absence_data{ext}")
                 file.save(save_path)
                 invalidate_caches()
+
+                # حفظ تاريخ ووقت رفع ملف الغياب بتوقيت السعودية ومزامنته مع GitHub
+                now_str = get_ksa_now_formatted()
+                set_meta_value("absence_last_update", now_str)
+                backup_db_to_github()
+
                 ok, sync_msg = sync_file_to_github(save_path, f"absence_data{ext}", "Update absence_data")
-                msg = "تم رفع ملف الغياب وحفظه في GitHub بنجاح!" if ok else f"تم الرفع محلياً فقط، وفشل الحفظ في GitHub: {sync_msg}"
+                msg = f"تم رفع ملف الغياب وحفظه في GitHub بنجاح! (تاريخ التحديث: {now_str})" if ok else f"تم الرفع محلياً فقط، وفشل الحفظ في GitHub: {sync_msg}"
                 msg_type = "success" if ok else "error"
 
         elif action == "upload_so09_file":
@@ -974,6 +1021,8 @@ def admin_delete_file(file_type):
                 try: os.remove(p)
                 except Exception: pass
             delete_file_from_github(f"absence_data{ext}")
+        set_meta_value("absence_last_update", "")
+        backup_db_to_github()
     elif file_type == "so09":
         for ext in ['.xlsx', '.xls', '.csv']:
             p = os.path.join(BASE_DIR, f"so09_data{ext}")
