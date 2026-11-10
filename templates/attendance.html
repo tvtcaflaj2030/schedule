@@ -12,6 +12,10 @@
         @media print {
             .no-print { display: none !important; }
             body { background: #fff !important; }
+        @app.route("/attendance")
+def attendance_page():
+    last_update = get_absence_last_update_text()
+    return render_template("attendance.html", absence_last_update=last_update)
         }
     </style>
 </head>
@@ -61,7 +65,7 @@
 
                 <!-- تنبيه آخر تحديث باللون الأحمر العريض تحت الزر الأخضر مباشرة -->
                 <p id="last-update-notice" class="text-red-600 font-extrabold text-xs sm:text-sm pt-2 leading-relaxed {% if not absence_last_update %}hidden{% endif %}">
-                    تنبيه: اخر تحديث لبيانات الحضور والغياب بتاريخ (<span id="last-update-val">{{ absence_last_update }}</span>)
+                    تنبيه: اخر تحديث لبيانات الحضور والغياب بتاريخ ووقت (<span id="last-update-val">{{ absence_last_update }}</span>)
                 </p>
             </form>
 
