@@ -58,6 +58,11 @@
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <span>استعلام عن المقررات</span>
                 </button>
+
+                <!-- تنبيه آخر تحديث باللون الأحمر العريض تحت الزر الأخضر مباشرة -->
+                <p id="last-update-notice" class="text-red-600 font-extrabold text-xs sm:text-sm pt-2 leading-relaxed {% if not absence_last_update %}hidden{% endif %}">
+                    تنبيه: اخر تحديث لبيانات الحضور والغياب بتاريخ ووقت (<span id="last-update-val">{{ absence_last_update }}</span>)
+                </p>
             </form>
 
             <div id="error-box" class="hidden p-3 rounded-2xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 max-w-md mx-auto"></div>
@@ -159,12 +164,16 @@
                 const data = await response.json();
 
                 if (data.success) {
+                    if (data.last_update) {
+                        document.getElementById('last-update-val').textContent = data.last_update;
+                        document.getElementById('last-update-notice').classList.remove('hidden');
+                    }
+
                     document.getElementById('res-name').textContent = data.trainee_name;
                     document.getElementById('res-id').textContent = data.trainee_id;
                     document.getElementById('res-dept').textContent = data.department || 'القسم التدريبي';
                     document.getElementById('courses-count-badge').textContent = `${data.courses.length} مقررات مسجلة`;
 
-                    // فحص ما إذا كان المتدرب مطوي قيده أو محروماً في أي مقرر (حتى لو كانت الساعات 0)
                     const hasFoldedEnrollment = data.courses.some(c => {
                         const st = (c.status_text || '') + ' ' + (c.course_status || '');
                         return st.includes('مطوي') || st.includes('طي قيد') || st.includes('قيده') || st.includes('انقطاع') || st.includes('إنقطاع');
@@ -202,7 +211,6 @@
                         overallBadge.textContent = "مستمر طبيعي (آمن)";
                     }
 
-                    // بناء بطاقات المقررات مع شريط التقدم الملون (Progress Bar)
                     const container = document.getElementById('courses-cards-container');
                     container.innerHTML = '';
 
@@ -212,7 +220,6 @@
                         const isFolded = statusStr.includes('مطوي') || statusStr.includes('طي قيد') || statusStr.includes('قيده') || statusStr.includes('انقطاع') || statusStr.includes('إنقطاع');
                         const isDanger = c.status_color === 'danger' || rate >= 20.0 || isFolded;
 
-                        // تحديد ألوان البطاقة وشريط التقدم بناءً على النسبة والحالة
                         let cardBorder = 'border-slate-200';
                         let badgeClass = 'bg-emerald-100 text-emerald-900 border border-emerald-200';
                         let barColor = 'bg-emerald-500';
@@ -239,20 +246,17 @@
                             statusIcon = 'fa-bell text-amber-500';
                         }
 
-                        // حساب عرض شريط التقدم (20% تمثل 100% من سقف الحرمان ليكون المؤشر واضحاً ودقيقاً)
-                        // وإذا كان مطوي قيده أو محروماً يمتلئ الشريط بالكامل 100% باللون الأحمر
                         let progressWidth = 0;
                         if (isDanger) {
                             progressWidth = 100;
                         } else {
                             progressWidth = Math.min(100, Math.round((rate / 20.0) * 100));
-                            if (rate > 0 && progressWidth < 6) progressWidth = 6; // حد أدنى لظهور اللون عند وجود غياب بسيط
+                            if (rate > 0 && progressWidth < 6) progressWidth = 6;
                         }
 
                         const card = document.createElement('div');
                         card.className = `bg-white p-5 rounded-3xl border ${cardBorder} shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4`;
                         card.innerHTML = `
-                            <!-- رأس البطاقة: اسم المقرر والشعبة والحالة -->
                             <div class="flex items-start justify-between gap-2">
                                 <div class="space-y-1">
                                     <h5 class="font-black text-sm text-slate-800 leading-snug">${c.course_name}</h5>
@@ -267,7 +271,6 @@
                                 </span>
                             </div>
 
-                            <!-- منتصف البطاقة: الساعات والنسبة المئوية -->
                             <div class="grid grid-cols-2 gap-2 pt-1">
                                 <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center justify-between">
                                     <span class="text-[11px] font-bold text-slate-500">ساعات الغياب</span>
@@ -279,17 +282,14 @@
                                 </div>
                             </div>
 
-                            <!-- شريط التقدم الملون (Progress Bar) -->
                             <div class="space-y-1.5 pt-1">
                                 <div class="flex items-center justify-between text-[10px] font-bold text-slate-400 px-0.5">
                                     <span>مؤشر الغياب</span>
                                     <span>${isFolded ? 'تم طي القيد من المقرر' : 'سقف الحرمان: 20%'}</span>
                                 </div>
                                 <div class="relative w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200/80 shadow-inner">
-                                    <!-- علامات إرشادية لعتبات الإنذار (10% و 15%) -->
                                     <div class="absolute top-0 bottom-0 right-1/2 w-px bg-slate-300/70 z-10" title="10% إنذار أول"></div>
                                     <div class="absolute top-0 bottom-0 right-3/4 w-px bg-slate-300/70 z-10" title="15% إنذار ثانٍ"></div>
-                                    <!-- الشريط المتحرك -->
                                     <div class="h-full ${barColor} rounded-full transition-all duration-700 ease-out" style="width: ${progressWidth}%"></div>
                                 </div>
                                 <div class="flex items-center justify-between text-[10px] font-bold text-slate-400 px-0.5">
