@@ -307,17 +307,22 @@ def get_meta_value(key, default=""):
     return default
 
 def get_absence_last_update_text():
+    # 1. التحقق من السجل المخزن صراحة في قاعدة البيانات
     saved_time = get_meta_value("absence_last_update", "")
     if saved_time:
         return saved_time
-    # في حال وجود ملف مرفوع مسبقاً قبل التحديث، نقرأ وقت الملف بتوقيت السعودية
+    
+    # 2. إذا لم يوجد، نأخذ وقت تعديل ملف الغياب الفعلي الموجود في السيرفر
     for ext in ['.xlsx', '.xls', '.csv']:
         p = os.path.join(BASE_DIR, f"absence_data{ext}")
         if os.path.exists(p):
             mtime_dt = datetime.fromtimestamp(os.path.getmtime(p), KSA_TZ)
             period = "مساءً" if mtime_dt.hour >= 12 else "صباحاً"
             hour_12 = mtime_dt.hour % 12 or 12
-            return f"{mtime_dt.strftime('%Y/%m/%d')} الساعة {hour_12:02d}:{mtime_dt.minute:02d} {period}"
+            formatted = f"{mtime_dt.strftime('%Y/%m/%d')} الساعة {hour_12:02d}:{mtime_dt.minute:02d} {period}"
+            return formatted
+            
+    # 3. إذا لم يكن هناك أي ملف مرفوع نهائياً
     return ""
 
 restore_all_from_github()
