@@ -36,13 +36,30 @@ STORAGE_BRANCH = "storage"
 # توقيت المملكة العربية السعودية (UTC+3)
 KSA_TZ = timezone(timedelta(hours=3))
 
+ROLE_LABELS = {
+    "general_admin": "مسؤول عام",
+    "manager": "مسؤول عام",
+    "vp": "وكيل شؤون المتدربين",
+    "counselor": "مرشد طلابي",
+    "head_of_dept": "رئيس قسم",
+    "trainer": "مدرب"
+}
+
+FULL_ACCESS_ROLES = ("general_admin", "manager", "vp", "counselor")
+
+def get_role_label(role, dept=""):
+    base = ROLE_LABELS.get(role, "مدرب")
+    if role == "head_of_dept" and dept:
+        return f"رئيس قسم ({dept})"
+    return base
+
 def get_ksa_now_formatted():
     now_ksa = datetime.now(KSA_TZ)
     period = "مساءً" if now_ksa.hour >= 12 else "صباحاً"
     hour_12 = now_ksa.hour % 12 or 12
     return f"{now_ksa.strftime('%Y/%m/%d')} الساعة {hour_12:02d}:{now_ksa.minute:02d} {period}"
 
-# --- 2. نظام المزامنة الموثوق مع GitHub مع كاشف الأخطاء ---
+# --- 2. نظام المزامنة الموثوق مع GitHub ---
 def _github_headers():
     return {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -307,23 +324,8 @@ def get_meta_value(key, default=""):
     return default
 
 def get_absence_last_update_text():
-    # 1. التحقق من السجل المخزن صراحة في قاعدة البيانات
-    saved_time = get_meta_value("absence_last_update", "")
-    if saved_time:
-        return saved_time
-    
-    # 2. إذا لم يوجد، نأخذ وقت تعديل ملف الغياب الفعلي الموجود في السيرفر
-    for ext in ['.xlsx', '.xls', '.csv']:
-        p = os.path.join(BASE_DIR, f"absence_data{ext}")
-        if os.path.exists(p):
-            mtime_dt = datetime.fromtimestamp(os.path.getmtime(p), KSA_TZ)
-            period = "مساءً" if mtime_dt.hour >= 12 else "صباحاً"
-            hour_12 = mtime_dt.hour % 12 or 12
-            formatted = f"{mtime_dt.strftime('%Y/%m/%d')} الساعة {hour_12:02d}:{mtime_dt.minute:02d} {period}"
-            return formatted
-            
-    # 3. إذا لم يكن هناك أي ملف مرفوع نهائياً
-    return ""
+    """يرجع فقط التاريخ المحفوظ عند رفع ملف الغياب من لوحة الإدارة دون أن يتأثر بتحديثات الكود"""
+    return get_meta_value("absence_last_update", "")
 
 restore_all_from_github()
 init_db()
@@ -631,10 +633,10 @@ def trainer_login_action():
                 t_name = matched.iloc[0]['اسم المدرب']
                 with get_db_connection() as conn:
                     c = conn.cursor()
-                    c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, 'trainer')", (emp_id, t_name))
+                    c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, department, role) VALUES (?, ?, '', 'trainer')", (emp_id, t_name))
                     conn.commit()
                 backup_db_to_github()
-                found_trainer = {"employee_id": emp_id, "trainer_name": t_name, "role": "trainer"}
+                found_trainer = {"employee_id": emp_id, "trainer_name": t_name, "department": "", "role": "trainer"}
 
         if not found_trainer:
             record_failed_attempt(client_ip)
@@ -646,16 +648,33 @@ def trainer_login_action():
     session["trainer_id"] = emp_id
     session["trainer_name"] = user["trainer_name"]
     session["trainer_role"] = user["role"]
+    session["trainer_dept"] = user["department"] if "department" in user.keys() and user["department"] else ""
     return redirect(url_for("trainer_dashboard"))
 
 @app.route("/trainer/dashboard")
 def trainer_dashboard():
     if not session.get("trainer_id"):
         return redirect(url_for("trainer_login_page"))
+
+    # تحديث الصلاحية والقسم من قاعدة البيانات مباشرة لضمان تطبيق أي تعديل من الإدارة فوراً
+    emp_id = session.get("trainer_id")
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT role, department, trainer_name FROM trainers_roles WHERE employee_id = ?", (emp_id,))
+        row = cursor.fetchone()
+        if row:
+            session["trainer_role"] = row["role"]
+            session["trainer_dept"] = row["department"] or ""
+            session["trainer_name"] = row["trainer_name"]
+
+    role = session.get("trainer_role", "trainer")
+    dept = session.get("trainer_dept", "")
     return render_template("trainer_dashboard.html",
-                           trainer_id=session.get("trainer_id"),
+                           trainer_id=emp_id,
                            trainer_name=session.get("trainer_name"),
-                           trainer_role=session.get("trainer_role"),
+                           trainer_role=role,
+                           trainer_dept=dept,
+                           role_label=get_role_label(role, dept),
                            services=TRAINER_SERVICES)
 
 @app.route("/trainer/my_schedule_pdf")
@@ -706,7 +725,17 @@ def trainer_absence_view():
         return redirect(url_for("trainer_login_page"))
 
     emp_id = session.get("trainer_id")
-    role = session.get("trainer_role")
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT role, department, trainer_name FROM trainers_roles WHERE employee_id = ?", (emp_id,))
+        row = cursor.fetchone()
+        if row:
+            session["trainer_role"] = row["role"]
+            session["trainer_dept"] = row["department"] or ""
+            session["trainer_name"] = row["trainer_name"]
+
+    role = session.get("trainer_role", "trainer")
+    trainer_dept = session.get("trainer_dept", "")
 
     df_abs = load_absence_dataframe()
     departments = []
@@ -714,7 +743,23 @@ def trainer_absence_view():
     courses = []
 
     if df_abs is not None and not df_abs.empty:
-        if role == "trainer":
+        if role in FULL_ACCESS_ROLES:
+            if 'اسم القسم' in df_abs.columns:
+                departments = sorted([d for d in df_abs['اسم القسم'].dropna().unique() if str(d).strip()])
+            if 'اسم البرنامج' in df_abs.columns:
+                programs = sorted([p for p in df_abs['اسم البرنامج'].dropna().unique() if str(p).strip()])
+            if 'اسم المقرر' in df_abs.columns:
+                courses = sorted([c for c in df_abs['اسم المقرر'].dropna().unique() if str(c).strip()])
+        elif role == "head_of_dept":
+            if trainer_dept and 'اسم القسم' in df_abs.columns:
+                dept_records = df_abs[df_abs['اسم القسم'] == trainer_dept]
+            else:
+                dept_records = df_abs.iloc[0:0]
+            if 'اسم البرنامج' in dept_records.columns:
+                programs = sorted([p for p in dept_records['اسم البرنامج'].dropna().unique() if str(p).strip()])
+            if 'اسم المقرر' in dept_records.columns:
+                courses = sorted([c for c in dept_records['اسم المقرر'].dropna().unique() if str(c).strip()])
+        else:
             assigned_sections = get_trainer_sections(emp_id)
             if assigned_sections:
                 df_abs_copy = df_abs.copy()
@@ -724,20 +769,15 @@ def trainer_absence_view():
                     programs = sorted([p for p in trainer_records['اسم البرنامج'].dropna().unique() if str(p).strip()])
                 if 'اسم المقرر' in trainer_records.columns:
                     courses = sorted([c for c in trainer_records['اسم المقرر'].dropna().unique() if str(c).strip()])
-        else:
-            if 'اسم القسم' in df_abs.columns:
-                departments = sorted([d for d in df_abs['اسم القسم'].dropna().unique() if str(d).strip()])
-            if 'اسم البرنامج' in df_abs.columns:
-                programs = sorted([p for p in df_abs['اسم البرنامج'].dropna().unique() if str(p).strip()])
-            if 'اسم المقرر' in df_abs.columns:
-                courses = sorted([c for c in df_abs['اسم المقرر'].dropna().unique() if str(c).strip()])
 
-    # جلب تاريخ ووقت آخر تحديث لملف الغياب
     last_update = get_absence_last_update_text()
 
     return render_template("trainer_absence_view.html",
                            trainer_name=session.get("trainer_name"),
                            trainer_role=role,
+                           trainer_dept=trainer_dept,
+                           role_label=get_role_label(role, trainer_dept),
+                           is_full_access=(role in FULL_ACCESS_ROLES),
                            departments=departments,
                            programs=programs,
                            courses=courses,
@@ -748,6 +788,7 @@ def trainer_logout():
     session.pop("trainer_id", None)
     session.pop("trainer_name", None)
     session.pop("trainer_role", None)
+    session.pop("trainer_dept", None)
     return redirect(url_for("trainer_login_page"))
 
 @app.route("/api/absence_records_query")
@@ -755,7 +796,6 @@ def api_absence_records_query():
     source = request.args.get("source", "")
     is_admin = session.get("logged_in", False)
     trainer_id = session.get("trainer_id", None)
-    trainer_role = session.get("trainer_role", "trainer")
 
     if source == "trainer" and not trainer_id:
         return jsonify({"success": False, "message": "غير مصرح للمدرب"}), 403
@@ -763,6 +803,18 @@ def api_absence_records_query():
         return jsonify({"success": False, "message": "غير مصرح للإدارة"}), 403
     elif not is_admin and not trainer_id:
         return jsonify({"success": False, "message": "غير مصرح"}), 403
+
+    trainer_role = session.get("trainer_role", "trainer")
+    trainer_dept = session.get("trainer_dept", "")
+
+    if source == "trainer" and trainer_id:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT role, department FROM trainers_roles WHERE employee_id = ?", (trainer_id,))
+            r_row = c.fetchone()
+            if r_row:
+                trainer_role = r_row["role"]
+                trainer_dept = r_row["department"] or ""
 
     df = load_absence_dataframe()
     if df is None or df.empty:
@@ -776,21 +828,30 @@ def api_absence_records_query():
     filtered['status_raw'] = filtered.apply(extract_row_course_status, axis=1)
     filtered['is_folded_or_deprived'] = filtered['status_raw'].apply(is_folded_or_deprived_text)
 
-    if source == "trainer" and trainer_role == "trainer":
-        assigned_sections = get_trainer_sections(trainer_id)
-        if assigned_sections:
-            filtered['sec_clean'] = filtered['أرقام شعب المقرر'].astype(str).apply(lambda x: str(x).split('.')[0].strip())
-            filtered = filtered[filtered['sec_clean'].isin(assigned_sections)]
-        else:
-            filtered = filtered.iloc[0:0]
-
     dept_filter = request.args.get("department", "ALL")
     program_filter = request.args.get("program", "ALL")
     course_filter = request.args.get("course", "ALL")
     status_filter = request.args.get("status", "ALL")
 
-    if dept_filter != "ALL" and 'اسم القسم' in filtered.columns:
-        filtered = filtered[filtered['اسم القسم'] == dept_filter]
+    if source == "trainer":
+        if trainer_role == "trainer":
+            assigned_sections = get_trainer_sections(trainer_id)
+            if assigned_sections:
+                filtered['sec_clean'] = filtered['أرقام شعب المقرر'].astype(str).apply(lambda x: str(x).split('.')[0].strip())
+                filtered = filtered[filtered['sec_clean'].isin(assigned_sections)]
+            else:
+                filtered = filtered.iloc[0:0]
+        elif trainer_role == "head_of_dept":
+            if trainer_dept and 'اسم القسم' in filtered.columns:
+                filtered = filtered[filtered['اسم القسم'] == trainer_dept]
+            else:
+                filtered = filtered.iloc[0:0]
+        elif trainer_role in FULL_ACCESS_ROLES:
+            if dept_filter != "ALL" and 'اسم القسم' in filtered.columns:
+                filtered = filtered[filtered['اسم القسم'] == dept_filter]
+    else:
+        if dept_filter != "ALL" and 'اسم القسم' in filtered.columns:
+            filtered = filtered[filtered['اسم القسم'] == dept_filter]
 
     available_programs = sorted([p for p in filtered['اسم البرنامج'].dropna().unique() if str(p).strip()]) if 'اسم البرنامج' in filtered.columns else []
 
@@ -999,20 +1060,26 @@ def admin():
                             clean_emp = clean_employee_id(raw_emp)
                             t_name = str(row.get('اسم المدرب', '')).strip()
                             if clean_emp and t_name:
-                                c.execute("INSERT OR IGNORE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, 'trainer')", (clean_emp, t_name))
+                                c.execute("INSERT OR IGNORE INTO trainers_roles (employee_id, trainer_name, department, role) VALUES (?, ?, '', 'trainer')", (clean_emp, t_name))
                         conn.commit()
                     backup_db_to_github()
                 msg = "تم رفع ملف الشعب (SO09) واستيراد المدربين وحفظهم في GitHub بنجاح!" if ok else f"تم الرفع محلياً فقط، وفشل الحفظ في GitHub: {sync_msg}"
                 msg_type = "success" if ok else "error"
 
+    df_abs = load_absence_dataframe()
+    departments = []
+    if df_abs is not None and not df_abs.empty and 'اسم القسم' in df_abs.columns:
+        departments = sorted([d for d in df_abs['اسم القسم'].dropna().unique() if str(d).strip()])
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM trainers_roles ORDER BY role DESC, trainer_name ASC")
+        cursor.execute("SELECT * FROM trainers_roles ORDER BY CASE WHEN role = 'trainer' THEN 1 ELSE 0 END, trainer_name ASC")
         trainers_list = cursor.fetchall()
 
     return render_template("admin.html",
                            logged_in=session.get("logged_in", False),
                            trainers_list=trainers_list,
+                           departments=departments,
                            msg=msg,
                            msg_type=msg_type)
 
@@ -1078,12 +1145,13 @@ def update_trainer_role():
         return jsonify({"success": False, "message": "غير مصرح"}), 403
     emp_id = clean_employee_id(request.form.get("employee_id", ""))
     new_role = request.form.get("role", "trainer")
+    new_dept = request.form.get("department", "").strip()
     if not emp_id:
         return jsonify({"success": False, "message": "رقم المدرب مفقود"})
 
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("UPDATE trainers_roles SET role = ? WHERE employee_id = ?", (new_role, emp_id))
+        cursor.execute("UPDATE trainers_roles SET role = ?, department = ? WHERE employee_id = ?", (new_role, new_dept, emp_id))
         conn.commit()
     backup_db_to_github()
     return jsonify({"success": True})
@@ -1095,10 +1163,11 @@ def add_trainer_role():
     emp_id = clean_employee_id(request.form.get("employee_id", ""))
     t_name = request.form.get("trainer_name", "").strip()
     role = request.form.get("role", "trainer")
+    dept = request.form.get("department", "").strip()
     if emp_id and t_name:
         with get_db_connection() as conn:
             c = conn.cursor()
-            c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, role) VALUES (?, ?, ?)", (emp_id, t_name, role))
+            c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, department, role) VALUES (?, ?, ?, ?)", (emp_id, t_name, dept, role))
             conn.commit()
         backup_db_to_github()
     return redirect(url_for("admin"))
@@ -1140,7 +1209,8 @@ def absence_dashboard():
                            has_data=df is not None and not df.empty,
                            departments=departments,
                            programs=programs,
-                           courses=courses)
+                           courses=courses,
+                           absence_last_update=get_absence_last_update_text())
 
 @app.route('/admin/attendance')
 def attendance_tracker():
