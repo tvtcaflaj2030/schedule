@@ -710,6 +710,7 @@ def trainer_absence_view():
 
     df_abs = load_absence_dataframe()
     departments = []
+    programs = []
     courses = []
 
     if df_abs is not None and not df_abs.empty:
@@ -719,11 +720,15 @@ def trainer_absence_view():
                 df_abs_copy = df_abs.copy()
                 df_abs_copy['sec_clean'] = df_abs_copy['أرقام شعب المقرر'].astype(str).apply(lambda x: str(x).split('.')[0].strip())
                 trainer_records = df_abs_copy[df_abs_copy['sec_clean'].isin(assigned_sections)]
+                if 'اسم البرنامج' in trainer_records.columns:
+                    programs = sorted([p for p in trainer_records['اسم البرنامج'].dropna().unique() if str(p).strip()])
                 if 'اسم المقرر' in trainer_records.columns:
                     courses = sorted([c for c in trainer_records['اسم المقرر'].dropna().unique() if str(c).strip()])
         else:
             if 'اسم القسم' in df_abs.columns:
                 departments = sorted([d for d in df_abs['اسم القسم'].dropna().unique() if str(d).strip()])
+            if 'اسم البرنامج' in df_abs.columns:
+                programs = sorted([p for p in df_abs['اسم البرنامج'].dropna().unique() if str(p).strip()])
             if 'اسم المقرر' in df_abs.columns:
                 courses = sorted([c for c in df_abs['اسم المقرر'].dropna().unique() if str(c).strip()])
 
@@ -731,6 +736,7 @@ def trainer_absence_view():
                            trainer_name=session.get("trainer_name"),
                            trainer_role=role,
                            departments=departments,
+                           programs=programs,
                            courses=courses)
 
 @app.route("/trainer/logout")
