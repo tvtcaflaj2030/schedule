@@ -732,12 +732,16 @@ def trainer_absence_view():
             if 'اسم المقرر' in df_abs.columns:
                 courses = sorted([c for c in df_abs['اسم المقرر'].dropna().unique() if str(c).strip()])
 
+    # جلب تاريخ ووقت آخر تحديث لملف الغياب
+    last_update = get_absence_last_update_text()
+
     return render_template("trainer_absence_view.html",
                            trainer_name=session.get("trainer_name"),
                            trainer_role=role,
                            departments=departments,
                            programs=programs,
-                           courses=courses)
+                           courses=courses,
+                           absence_last_update=last_update)
 
 @app.route("/trainer/logout")
 def trainer_logout():
