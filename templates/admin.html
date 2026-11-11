@@ -94,7 +94,7 @@
                 </div>
                 <h2 class="text-xl font-black text-white">منظومة متابعة سير العملية التدريبية (رايات)</h2>
                 <p class="text-xs text-slate-300 leading-relaxed">
-                    تحليل تقارير رايات الأسبوعية، فحص ومتابعة نسب الحرمان، وتوزيع صلاحيات المدربين والمسؤولين بكل مرونة وسهولة.
+                    تحليل تقارير رايات الأسبوعية، فحص ومتابعة نسب الحرمان، وتوزيع صلاحيات المدربين ورؤساء الأقسام والوكلاء والمرشدين بكل مرونة وسهولة.
                 </p>
             </div>
 
@@ -238,25 +238,34 @@
 
         </section>
 
-        <!-- إدارة الصلاحيات: التحكم بالمدربين والمسؤولين -->
+        <!-- إدارة الصلاحيات والمناصب التدريبية والإدارية -->
         <section class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-5">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                 <div>
                     <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
                         <i class="fa-solid fa-user-shield text-emerald-800"></i>
-                        إدارة صلاحيات المدربين والمسؤولين
+                        إدارة صلاحيات المدربين ورؤساء الأقسام والمسؤولين
                     </h3>
                     <p class="text-xs text-slate-400 mt-0.5">
-                        المدرب يشاهد فقط طلابه وشعبه المسندة، بينما المسؤول يشاهد كافة المتدربين.
+                        حدد المنصب الوظيفي لكل حساب (المدرب لشعبه فقط، رئيس القسم لقسمه المحدد، والوكيل/المرشد/المسؤول العام لكافة الأقسام).
                     </p>
                 </div>
                 
                 <form action="/admin/trainer_role/add" method="POST" class="flex flex-wrap items-center gap-2">
-                    <input type="text" name="employee_id" required placeholder="الرقم الوظيفي" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700 w-36">
+                    <input type="text" name="employee_id" required placeholder="الرقم الوظيفي" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700 w-32">
                     <input type="text" name="trainer_name" required placeholder="اسم المدرب / المسؤول" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700 w-44">
                     <select name="role" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
                         <option value="trainer">مدرب (شعبه فقط)</option>
-                        <option value="manager">مسؤول (صلاحية كاملة)</option>
+                        <option value="head_of_dept">رئيس قسم (قسمه فقط)</option>
+                        <option value="counselor">مرشد طلابي (شامل)</option>
+                        <option value="vp">وكيل تدريبي (شامل)</option>
+                        <option value="general_admin">مسؤول عام (شامل)</option>
+                    </select>
+                    <select name="department" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                        <option value="">-- القسم (لرئيس القسم) --</option>
+                        {% for d in departments %}
+                        <option value="{{ d }}">{{ d }}</option>
+                        {% endfor %}
                     </select>
                     <button type="submit" class="px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-1">
                         <i class="fa-solid fa-plus"></i> إضافة
@@ -270,15 +279,16 @@
                         <tr>
                             <th class="p-3">الرقم الوظيفي</th>
                             <th class="p-3">الاسم</th>
-                            <th class="p-3 text-center">الصلاحية الحالية</th>
-                            <th class="p-3 text-center w-56">تغيير الصلاحية</th>
-                            <th class="p-3 text-center w-24">حذف</th>
+                            <th class="p-3 text-center">المنصب الحالي</th>
+                            <th class="p-3 text-center w-52">تغيير المنصب / الصلاحية</th>
+                            <th class="p-3 text-center w-60">القسم المخصص (لرئيس القسم)</th>
+                            <th class="p-3 text-center w-20">حذف</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 font-medium">
                         {% if trainers_list|length == 0 %}
                         <tr>
-                            <td colspan="5" class="p-8 text-center text-slate-400 font-bold">
+                            <td colspan="6" class="p-8 text-center text-slate-400 font-bold">
                                 لا يوجد مدربين مسجلين حالياً. ارفع ملف SO09 ليتم استيرادهم تلقائياً.
                             </td>
                         </tr>
@@ -288,9 +298,22 @@
                             <td class="p-3 text-slate-800 font-mono font-bold">{{ t['employee_id'] }}</td>
                             <td class="p-3 text-slate-900 font-bold">{{ t['trainer_name'] }}</td>
                             <td class="p-3 text-center">
-                                {% if t['role'] == 'manager' %}
+                                {% if t['role'] in ['general_admin', 'manager'] %}
                                 <span class="px-3 py-1 rounded-xl text-[10.5px] font-black bg-purple-100 text-purple-900 border border-purple-200">
-                                    <i class="fa-solid fa-shield-halved ml-1"></i> مسؤول
+                                    <i class="fa-solid fa-shield-halved ml-1"></i> مسؤول عام
+                                </span>
+                                {% elif t['role'] == 'vp' %}
+                                <span class="px-3 py-1 rounded-xl text-[10.5px] font-black bg-indigo-100 text-indigo-900 border border-indigo-200">
+                                    <i class="fa-solid fa-user-tie ml-1"></i> وكيل تدريبي
+                                </span>
+                                {% elif t['role'] == 'counselor' %}
+                                <span class="px-3 py-1 rounded-xl text-[10.5px] font-black bg-amber-100 text-amber-900 border border-amber-200">
+                                    <i class="fa-solid fa-hands-holding-child ml-1"></i> مرشد طلابي
+                                </span>
+                                {% elif t['role'] == 'head_of_dept' %}
+                                <span class="px-3 py-1 rounded-xl text-[10.5px] font-black bg-blue-100 text-blue-900 border border-blue-200">
+                                    <i class="fa-solid fa-building-user ml-1"></i> رئيس قسم
+                                    {% if t['department'] %}({{ t['department'] }}){% endif %}
                                 </span>
                                 {% else %}
                                 <span class="px-3 py-1 rounded-xl text-[10.5px] font-black bg-emerald-100 text-emerald-900 border border-emerald-200">
@@ -299,9 +322,20 @@
                                 {% endif %}
                             </td>
                             <td class="p-3 text-center">
-                                <select onchange="changeRole('{{ t['employee_id'] }}', this.value)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                                <select id="role-{{ t['employee_id'] }}" onchange="updateTrainerInfo('{{ t['employee_id'] }}')" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
                                     <option value="trainer" {% if t['role'] == 'trainer' %}selected{% endif %}>مدرب (شعبه فقط)</option>
-                                    <option value="manager" {% if t['role'] == 'manager' %}selected{% endif %}>مسؤول (صلاحية كاملة)</option>
+                                    <option value="head_of_dept" {% if t['role'] == 'head_of_dept' %}selected{% endif %}>رئيس قسم (قسمه فقط)</option>
+                                    <option value="counselor" {% if t['role'] == 'counselor' %}selected{% endif %}>مرشد طلابي (شامل)</option>
+                                    <option value="vp" {% if t['role'] == 'vp' %}selected{% endif %}>وكيل تدريبي (شامل)</option>
+                                    <option value="general_admin" {% if t['role'] in ['general_admin', 'manager'] %}selected{% endif %}>مسؤول عام (شامل)</option>
+                                </select>
+                            </td>
+                            <td class="p-3 text-center">
+                                <select id="dept-{{ t['employee_id'] }}" onchange="updateTrainerInfo('{{ t['employee_id'] }}')" class="w-full bg-slate-50 border {% if t['role'] == 'head_of_dept' and not t['department'] %}border-rose-400 bg-rose-50{% else %}border-slate-200{% endif %} rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                                    <option value="">-- بدون قسم مخصص --</option>
+                                    {% for d in departments %}
+                                    <option value="{{ d }}" {% if t['department'] == d %}selected{% endif %}>{{ d }}</option>
+                                    {% endfor %}
                                 </select>
                             </td>
                             <td class="p-3 text-center">
@@ -323,10 +357,15 @@
     {% endif %}
 
     <script>
-        async function changeRole(empId, newRole) {
+        async function updateTrainerInfo(empId) {
+            const newRole = document.getElementById('role-' + empId).value;
+            const newDept = document.getElementById('dept-' + empId).value;
+
             const formData = new FormData();
             formData.append('employee_id', empId);
             formData.append('role', newRole);
+            formData.append('department', newDept);
+
             try {
                 const res = await fetch('/admin/trainer_role/update', {
                     method: 'POST',
