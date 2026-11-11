@@ -45,7 +45,17 @@
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <main class="max-w-7xl mx-auto px-4 py-6 space-y-5">
+
+        <!-- تنبيه آخر تحديث لبيانات الغياب في الأعلى باللون الأحمر العريض -->
+        {% if absence_last_update %}
+        <div class="bg-rose-50/90 border border-rose-200 rounded-2xl px-4 py-3 flex items-center justify-center gap-2 shadow-sm no-print">
+            <i class="fa-solid fa-clock-rotate-left text-red-600 text-sm"></i>
+            <p class="text-red-600 font-extrabold text-xs sm:text-sm text-center">
+                تنبيه: اخر تحديث لبيانات الحضور والغياب بتاريخ ووقت (<span>{{ absence_last_update }}</span>)
+            </p>
+        </div>
+        {% endif %}
 
         <!-- ترويسة الطباعة الورقية A4 -->
         <div class="hidden print:block border-b-2 border-slate-800 pb-3 mb-4">
@@ -58,9 +68,12 @@
                 <div class="text-center">
                     <h2 class="text-base font-black">كشف متابعة الإنذارات ونسب الغياب</h2>
                     <p class="text-xs font-bold text-slate-600 mt-1">المدرب: {{ trainer_name }}</p>
+                    {% if absence_last_update %}
+                    <p class="text-[10px] font-bold text-slate-500 mt-0.5">آخر تحديث للبيانات: {{ absence_last_update }}</p>
+                    {% endif %}
                 </div>
                 <div class="text-left text-[11px]">
-                    <p>تاريخ الكشف: <span id="current-print-date"></span></p>
+                    <p>تاريخ الطباعة: <span id="current-print-date"></span></p>
                 </div>
             </div>
         </div>
@@ -223,7 +236,6 @@
                     updateCounters(data.records);
 
                     if (updateLists) {
-                        // تحديث قائمة البرامج المتاحة في نطاق المدرب أو القسم
                         if (programSelect && data.programs) {
                             const currentProg = programSelect.value;
                             programSelect.innerHTML = '<option value="ALL">كافة البرامج التدريبية</option>';
@@ -238,7 +250,6 @@
                             }
                         }
 
-                        // تحديث قائمة المقررات
                         if (courseSelect && data.courses) {
                             const currentCourse = courseSelect.value;
                             const defaultText = '{{ "كافة المقررات" if trainer_role == "manager" else "كافة مقرراتي التدريبية" }}';
