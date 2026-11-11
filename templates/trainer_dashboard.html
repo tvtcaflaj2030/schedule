@@ -18,15 +18,48 @@
         <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-slate-800 text-white rounded-xl flex items-center justify-center text-base shadow-sm">
+                    {% if trainer_role in ['general_admin', 'manager'] %}
+                    <i class="fa-solid fa-shield-halved"></i>
+                    {% elif trainer_role == 'vp' %}
                     <i class="fa-solid fa-user-tie"></i>
+                    {% elif trainer_role == 'counselor' %}
+                    <i class="fa-solid fa-hands-holding-child"></i>
+                    {% elif trainer_role == 'head_of_dept' %}
+                    <i class="fa-solid fa-building-user"></i>
+                    {% else %}
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                    {% endif %}
                 </div>
                 <div>
-                    <h1 class="font-black text-sm sm:text-base text-slate-800">{{ trainer_name }}</h1>
-                    <p class="text-[11px] text-slate-400">
-                        الرقم الوظيفي: <span class="font-bold text-slate-600">{{ trainer_id }}</span> — 
-                        <span class="font-bold {% if trainer_role == 'manager' %}text-purple-800{% else %}text-emerald-800{% endif %}">
-                            {% if trainer_role == 'manager' %}صلاحية مسؤول (اطلاع كامل){% else %}صلاحية مدرب (شعبك فقط){% endif %}
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h1 class="font-black text-sm sm:text-base text-slate-800">{{ trainer_name }}</h1>
+                        {% if trainer_role in ['general_admin', 'manager'] %}
+                        <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-purple-100 text-purple-900 border border-purple-200">
+                            {{ role_label or 'مسؤول عام' }}
                         </span>
+                        {% elif trainer_role == 'vp' %}
+                        <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-indigo-100 text-indigo-900 border border-indigo-200">
+                            {{ role_label or 'وكيل شؤون المتدربين' }}
+                        </span>
+                        {% elif trainer_role == 'counselor' %}
+                        <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-200">
+                            {{ role_label or 'مرشد طلابي' }}
+                        </span>
+                        {% elif trainer_role == 'head_of_dept' %}
+                        <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-blue-100 text-blue-900 border border-blue-200">
+                            {{ role_label or 'رئيس قسم' }}
+                        </span>
+                        {% else %}
+                        <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-emerald-100 text-emerald-900 border border-emerald-200">
+                            مدرب
+                        </span>
+                        {% endif %}
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-0.5">
+                        الرقم الوظيفي: <span class="font-bold text-slate-600 font-mono">{{ trainer_id }}</span>
+                        {% if trainer_role == 'head_of_dept' and trainer_dept %}
+                        — القسم: <span class="font-bold text-blue-800">{{ trainer_dept }}</span>
+                        {% endif %}
                     </p>
                 </div>
             </div>
@@ -39,6 +72,29 @@
     </header>
 
     <main class="max-w-5xl mx-auto px-4 py-8 space-y-6 w-full flex-1">
+
+        <!-- شريط ترحيبي ذكي يوضح الصلاحيات الممنوحة للمستخدم -->
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-start sm:items-center gap-3.5">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center text-xl shrink-0">
+                    <i class="fa-solid fa-id-badge"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm sm:text-base font-black text-slate-800">
+                        أهلاً بك، {{ trainer_name }}
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                        {% if trainer_role == 'head_of_dept' %}
+                        حسابك مفعّل بصلاحية <strong class="text-blue-800">{{ role_label }}</strong>؛ يمكنك التبديل بمرونة بين استعراض <strong class="text-emerald-800">شعبك التدريبية الخاصة كمدرب</strong> أو متابعة <strong class="text-blue-800">كشوفات قسمك بالكامل</strong>.
+                        {% elif trainer_role in ['general_admin', 'manager', 'vp', 'counselor'] %}
+                        حسابك مفعّل بصلاحية <strong class="text-purple-800">{{ role_label }}</strong>؛ يمكنك استعراض <strong class="text-emerald-800">شعبك الخاصة</strong> بشكل مستقل أو فتح <strong class="text-purple-800">كشوفات الإشراف العام لكافة الأقسام</strong>.
+                        {% else %}
+                        حسابك مفعّل بصلاحية <strong class="text-emerald-800">مدرب</strong>؛ يمكنك استعراض جدولك التدريبي ومتابعة نسب غياب المتدربين المسجلين في شعبك المسندة.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
 
         <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
@@ -59,30 +115,52 @@
                 </a>
             </div>
 
-            <!-- البطاقة 2: كشوفات الغياب والإنذارات -->
+            <!-- البطاقة 2: كشوفات الغياب والإنذارات (بزرين منفصلين لمنع تداخل الشعب مع القسم) -->
             <div class="bg-white p-6 rounded-3xl border-2 border-emerald-600/40 hover:border-emerald-700 shadow-sm flex flex-col justify-between space-y-4 hover:shadow-md transition-all">
                 <div class="space-y-3">
                     <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-xl shadow-inner">
                         <i class="fa-solid fa-chart-pie"></i>
                     </div>
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between gap-2">
                         <h3 class="text-base font-black text-slate-800">كشوفات الغياب والإنذارات</h3>
-                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold {% if trainer_role == 'manager' %}bg-purple-100 text-purple-900{% else %}bg-emerald-100 text-emerald-900{% endif %}">
-                            {% if trainer_role == 'manager' %}شامل{% else %}شعبك فقط{% endif %}
+                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold {% if trainer_role != 'trainer' %}bg-blue-100 text-blue-900{% else %}bg-emerald-100 text-emerald-900{% endif %}">
+                            {% if trainer_role == 'head_of_dept' %}شعبك + القسم{% elif trainer_role != 'trainer' %}شعبك + شامل{% else %}شعبك فقط{% endif %}
                         </span>
                     </div>
                     <p class="text-xs text-slate-500 leading-relaxed">
-                        {% if trainer_role == 'manager' %}
-                        استعراض وفرز كشوفات جميع المتدربين لكافة الأقسام والشعب وسحب الأسماء المهددة بالحرمان.
+                        {% if trainer_role == 'head_of_dept' %}
+                        اختر فتح شعبك التدريبية الخاصة بخصوصية تامة، أو فتح كشوفات قسم ({{ trainer_dept or 'القسم التدريبي' }}) بالكامل.
+                        {% elif trainer_role != 'trainer' %}
+                        اختر فتح شعبك التدريبية الخاصة كمدرب، أو الدخول لوضع الإشراف الشامل لكافة أقسام المعهد.
                         {% else %}
                         استعراض المتدربين المسجلين في شعبك التدريبية فقط، ومتابعة نسب غيابهم لتفادي الحرمان.
                         {% endif %}
                     </p>
                 </div>
+
+                {% if trainer_role != 'trainer' %}
+                <div class="space-y-2 pt-1">
+                    <a href="/trainer/absence_view?mode=my" class="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all">
+                        <i class="fa-solid fa-chalkboard-user text-[11px]"></i>
+                        <span>كشوفات شعبي الخاصة (كمدرب)</span>
+                    </a>
+                    <a href="/trainer/absence_view?mode=scope" class="w-full py-2.5 bg-blue-900 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all">
+                        <i class="fa-solid fa-building-shield text-[11px]"></i>
+                        <span>
+                            {% if trainer_role == 'head_of_dept' %}
+                            كشوفات القسم كاملة (رئيس قسم)
+                            {% else %}
+                            كشوفات الإشراف العام ({{ role_label }})
+                            {% endif %}
+                        </span>
+                    </a>
+                </div>
+                {% else %}
                 <a href="/trainer/absence_view" class="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all">
                     <span>فتح لوحة الكشوفات</span>
                     <i class="fa-solid fa-chevron-left text-[10px]"></i>
                 </a>
+                {% endif %}
             </div>
 
             <!-- البطاقة 3: الخدمات الذاتية -->
