@@ -59,7 +59,7 @@ def get_ksa_now_formatted():
     hour_12 = now_ksa.hour % 12 or 12
     return f"{now_ksa.strftime('%Y/%m/%d')} الساعة {hour_12:02d}:{now_ksa.minute:02d} {period}"
 
-# --- 2. نظام المزامنة الموثوق مع GitHub ---
+# --- 2. نظام المزامنة الموثوق مع GitHub (مع إعادة المحاولة التلقائية لمنع التضارب) ---
 def _github_headers():
     return {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -99,7 +99,7 @@ def ensure_storage_branch():
         )
         if create_res.status_code in (200, 201):
             return True, "تم إنشاء فرع storage الجديد بنجاح"
-        return False, f"فشل إنشاء فرع storage (تأكد من صلاحية repo للرمز): {create_res.text}"
+        return False, f"فشل إنشاء فرع storage: {create_res.text}"
     except Exception as e:
         return False, f"خطأ اتصال بـ GitHub: {str(e)}"
 
@@ -114,26 +114,36 @@ def sync_file_to_github(local_path, repo_filename, commit_msg="Auto-backup file"
         return False, branch_msg
 
     try:
-        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{repo_filename}"
         with open(local_path, "rb") as f:
             raw_bytes = f.read()
         content_encoded = base64.b64encode(raw_bytes).decode("utf-8")
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{repo_filename}"
 
-        get_res = requests.get(url, headers=_github_headers(), params={"ref": STORAGE_BRANCH}, timeout=20)
-        sha = get_res.json().get("sha") if get_res.status_code == 200 else None
+        # محاولة الرفع حتى 3 مرات لتفادي خطأ 409 Conflict عند تتابع الطلبات
+        last_error = ""
+        for attempt in range(3):
+            get_res = requests.get(url, headers=_github_headers(), params={"ref": STORAGE_BRANCH}, timeout=20)
+            sha = get_res.json().get("sha") if get_res.status_code == 200 else None
 
-        data = {
-            "message": commit_msg,
-            "content": content_encoded,
-            "branch": STORAGE_BRANCH
-        }
-        if sha:
-            data["sha"] = sha
+            data = {
+                "message": commit_msg,
+                "content": content_encoded,
+                "branch": STORAGE_BRANCH
+            }
+            if sha:
+                data["sha"] = sha
 
-        put_res = requests.put(url, headers=_github_headers(), json=data, timeout=90)
-        if put_res.status_code in (200, 201):
-            return True, "تم الحفظ في GitHub فرع storage بنجاح"
-        return False, f"رفض GitHub حفظ الملف (كود {put_res.status_code}): {put_res.json().get('message', '')}"
+            put_res = requests.put(url, headers=_github_headers(), json=data, timeout=90)
+            if put_res.status_code in (200, 201):
+                return True, "تم الحفظ في GitHub فرع storage بنجاح"
+            
+            last_error = f"كود {put_res.status_code}: {put_res.json().get('message', '')}"
+            if put_res.status_code in (409, 500, 502, 503, 504):
+                time.sleep(1.0)
+                continue
+            break
+
+        return False, f"رفض GitHub حفظ الملف ({last_error})"
     except Exception as e:
         return False, f"استثناء أثناء الرفع إلى GitHub: {str(e)}"
 
@@ -220,7 +230,7 @@ def record_failed_attempt(ip):
 def clear_failed_attempts(ip):
     _LOGIN_ATTEMPTS.pop(ip, None)
 
-# --- 4. التخزين المؤقت الذكي ---
+# --- 4. التخزين المؤقت الذكي مع الاسترجاع التلقائي ---
 _DATAFRAME_CACHE = {
     "absence": {"mtime": None, "path": None, "df": None},
     "so09": {"mtime": None, "path": None, "df": None}
@@ -262,7 +272,7 @@ def is_folded_or_deprived_text(status_str):
     keywords = ["مطوي", "طي قيد", "قيده", "محروم", "حرمان", "منقطع", "انقطاع", "إنقطاع", "مفصول"]
     return any(k in status_str for k in keywords)
 
-# --- 5. إدارة قاعدة البيانات وحفظ تاريخ آخر تحديث ---
+# --- 5. إدارة قاعدة البيانات والترقية التلقائية للأعمدة ---
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
@@ -297,6 +307,12 @@ def init_db():
                 role TEXT DEFAULT 'trainer'
             )
         ''')
+        # فحص وإضافة عمود department تلقائياً إذا كانت قاعدة البيانات قديمة
+        cursor.execute("PRAGMA table_info(trainers_roles)")
+        cols = [col[1] for col in cursor.fetchall()]
+        if "department" not in cols:
+            cursor.execute("ALTER TABLE trainers_roles ADD COLUMN department TEXT DEFAULT ''")
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS system_meta (
                 meta_key TEXT PRIMARY KEY,
@@ -324,7 +340,6 @@ def get_meta_value(key, default=""):
     return default
 
 def get_absence_last_update_text():
-    """يرجع فقط التاريخ المحفوظ عند رفع ملف الغياب من لوحة الإدارة دون أن يتأثر بتحديثات الكود"""
     return get_meta_value("absence_last_update", "")
 
 restore_all_from_github()
@@ -347,12 +362,18 @@ TRAINER_SERVICES = [
 ]
 
 def _load_cached_dataframe(cache_key, base_filename):
-    possible_files = [
-        os.path.join(BASE_DIR, f"{base_filename}.xlsx"),
-        os.path.join(BASE_DIR, f"{base_filename}.xls"),
-        os.path.join(BASE_DIR, f"{base_filename}.csv")
-    ]
-    for filepath in possible_files:
+    possible_exts = ['.xlsx', '.xls', '.csv']
+    
+    # استرجاع تلقائي من فرع storage إذا لم يكن الملف موجوداً محلياً
+    file_exists_locally = any(os.path.exists(os.path.join(BASE_DIR, f"{base_filename}{ext}")) for ext in possible_exts)
+    if not file_exists_locally and GITHUB_TOKEN:
+        for ext in possible_exts:
+            target_path = os.path.join(BASE_DIR, f"{base_filename}{ext}")
+            if restore_file_from_github(target_path, f"{base_filename}{ext}", only_storage=True):
+                break
+
+    for ext in possible_exts:
+        filepath = os.path.join(BASE_DIR, f"{base_filename}{ext}")
         if os.path.exists(filepath):
             try:
                 mtime = os.path.getmtime(filepath)
@@ -364,18 +385,22 @@ def _load_cached_dataframe(cache_key, base_filename):
                     df = pd.read_excel(filepath)
                 else:
                     try:
-                        df = pd.read_csv(filepath, encoding='utf-8')
+                        df = pd.read_csv(filepath, encoding='utf-8-sig')
                     except UnicodeDecodeError:
                         df = pd.read_csv(filepath, encoding='windows-1256')
 
+                # تنظيف أسماء الأعمدة من أي مسافات أو رموز BOM خفية
+                df.columns = [str(c).replace('\ufeff', '').strip() for c in df.columns]
+
                 if cache_key == "absence" and 'رقم المتدرب' in df.columns:
-                    df['رقم_نظيف'] = df['رقم المتدرب'].astype(str).apply(lambda x: normalize_digits(x).strip())
+                    df['رقم_نظيف'] = df['رقم المتدرب'].astype(str).apply(lambda x: normalize_digits(x).split('.')[0].strip())
                 if cache_key == "so09" and 'رقم الحاسب' in df.columns:
                     df['emp_clean'] = df['رقم الحاسب'].astype(str).apply(clean_employee_id)
 
                 _DATAFRAME_CACHE[cache_key] = {"mtime": mtime, "path": filepath, "df": df}
                 return df.copy()
-            except Exception:
+            except Exception as e:
+                print(f"Error loading {filepath}:", e)
                 continue
     return None
 
@@ -485,7 +510,7 @@ def search_absence():
         return jsonify({"success": False, "message": "لم يتم رفع أو تحديث بيانات الغياب من قبل الإدارة بعد."})
 
     if 'رقم_نظيف' not in df.columns:
-        df['رقم_نظيف'] = df['رقم المتدرب'].astype(str).apply(lambda x: normalize_digits(x).strip())
+        df['رقم_نظيف'] = df['رقم المتدرب'].astype(str).apply(lambda x: normalize_digits(x).split('.')[0].strip())
     matched = df[df['رقم_نظيف'] == trainee_id]
 
     if matched.empty:
@@ -500,7 +525,7 @@ def search_absence():
 
     for _, row in matched.iterrows():
         course_name = row['اسم المقرر']
-        section_no = row['أرقام شعب المقرر'] if 'أرقام شعب المقرر' in row else ''
+        section_no = str(row['أرقام شعب المقرر']).split('.')[0] if 'أرقام شعب المقرر' in row else ''
         raw_rate = row.get('إجمالي نسبة الغياب بعذر وبدون عذر', 0)
         raw_hours = row.get('إجمالي ساعات الغياب بعذر وبدون عذر', 0)
         course_status_raw = extract_row_course_status(row)
@@ -656,7 +681,6 @@ def trainer_dashboard():
     if not session.get("trainer_id"):
         return redirect(url_for("trainer_login_page"))
 
-    # تحديث الصلاحية والقسم من قاعدة البيانات مباشرة لضمان تطبيق أي تعديل من الإدارة فوراً
     emp_id = session.get("trainer_id")
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -797,28 +821,12 @@ def api_absence_records_query():
     is_admin = session.get("logged_in", False)
     trainer_id = session.get("trainer_id", None)
 
-    view_mode = request.args.get("view_mode", "role_scope")  # 'my_sections' أو 'role_scope'
-
-    if source == "trainer":
-        # إذا كان مدرباً عادياً، أو كان رئيس قسم/مسؤول واختار عرض "شعبي الخاصة فقط"
-        if trainer_role == "trainer" or view_mode == "my_sections":
-            assigned_sections = get_trainer_sections(trainer_id)
-            if assigned_sections:
-                filtered['sec_clean'] = filtered['أرقام شعب المقرر'].astype(str).apply(lambda x: str(x).split('.')[0].strip())
-                filtered = filtered[filtered['sec_clean'].isin(assigned_sections)]
-            else:
-                filtered = filtered.iloc[0:0]
-        elif trainer_role == "head_of_dept":
-            if trainer_dept and 'اسم القسم' in filtered.columns:
-                filtered = filtered[filtered['اسم القسم'] == trainer_dept]
-            else:
-                filtered = filtered.iloc[0:0]
-        elif trainer_role in FULL_ACCESS_ROLES:
-            if dept_filter != "ALL" and 'اسم القسم' in filtered.columns:
-                filtered = filtered[filtered['اسم القسم'] == dept_filter]
-    else:
-        if dept_filter != "ALL" and 'اسم القسم' in filtered.columns:
-            filtered = filtered[filtered['اسم القسم'] == dept_filter]
+    if source == "trainer" and not trainer_id:
+        return jsonify({"success": False, "message": "غير مصرح للمدرب"}), 403
+    elif source == "admin" and not is_admin:
+        return jsonify({"success": False, "message": "غير مصرح للإدارة"}), 403
+    elif not is_admin and not trainer_id:
+        return jsonify({"success": False, "message": "غير مصرح"}), 403
 
     trainer_role = session.get("trainer_role", "trainer")
     trainer_dept = session.get("trainer_dept", "")
@@ -848,9 +856,10 @@ def api_absence_records_query():
     program_filter = request.args.get("program", "ALL")
     course_filter = request.args.get("course", "ALL")
     status_filter = request.args.get("status", "ALL")
+    view_mode = request.args.get("view_mode", "role_scope")
 
     if source == "trainer":
-        if trainer_role == "trainer":
+        if trainer_role == "trainer" or view_mode == "my_sections":
             assigned_sections = get_trainer_sections(trainer_id)
             if assigned_sections:
                 filtered['sec_clean'] = filtered['أرقام شعب المقرر'].astype(str).apply(lambda x: str(x).split('.')[0].strip())
@@ -929,12 +938,12 @@ def api_absence_records_query():
             st_badge = "safe"
 
         records.append({
-            "trainee_id": str(row.get('رقم المتدرب', '')),
+            "trainee_id": str(row.get('رقم المتدرب', '')).split('.')[0],
             "trainee_name": str(row.get('اسم المتدرب', '')),
             "department": str(row.get('اسم القسم', '')),
             "program": str(row.get('اسم البرنامج', '')),
             "course_name": str(row.get('اسم المقرر', '')),
-            "section_no": str(row.get('أرقام شعب المقرر', '')),
+            "section_no": str(row.get('أرقام شعب المقرر', '')).split('.')[0],
             "absence_rate": round(rate, 2),
             "absence_hours": round(float(row['hours']), 1),
             "status_text": st_text,
@@ -1028,28 +1037,47 @@ def admin():
 
         elif action == "upload_absence_file":
             if not session.get("logged_in"): return redirect(url_for("admin"))
-            file = request.files.get("absence_file")
-            if file and file.filename.lower().endswith((".csv", ".xlsx", ".xls")):
-                ext = os.path.splitext(file.filename)[1].lower()
-                for old_ext in ['.xlsx', '.xls', '.csv']:
-                    old_path = os.path.join(BASE_DIR, f"absence_data{old_ext}")
-                    if os.path.exists(old_path):
-                        try: os.remove(old_path)
-                        except Exception: pass
-                    if old_ext != ext:
-                        delete_file_from_github(f"absence_data{old_ext}")
-                save_path = os.path.join(BASE_DIR, f"absence_data{ext}")
-                file.save(save_path)
-                invalidate_caches()
+            try:
+                file = request.files.get("absence_file")
+                if not file or not file.filename:
+                    msg = "يرجى اختيار ملف الغياب أولاً."
+                    msg_type = "error"
+                elif not file.filename.lower().endswith((".csv", ".xlsx", ".xls")):
+                    msg = "صيغة الملف غير مدعومة. يرجى رفع ملف بصيغة CSV أو Excel."
+                    msg_type = "error"
+                else:
+                    ext = os.path.splitext(file.filename)[1].lower()
+                    for old_ext in ['.xlsx', '.xls', '.csv']:
+                        old_path = os.path.join(BASE_DIR, f"absence_data{old_ext}")
+                        if os.path.exists(old_path) and old_ext != ext:
+                            try: os.remove(old_path)
+                            except Exception: pass
+                            delete_file_from_github(f"absence_data{old_ext}")
 
-                # حفظ تاريخ ووقت رفع ملف الغياب بتوقيت السعودية ومزامنته مع GitHub
-                now_str = get_ksa_now_formatted()
-                set_meta_value("absence_last_update", now_str)
-                backup_db_to_github()
+                    save_path = os.path.join(BASE_DIR, f"absence_data{ext}")
+                    file.save(save_path)
+                    invalidate_caches()
 
-                ok, sync_msg = sync_file_to_github(save_path, f"absence_data{ext}", "Update absence_data")
-                msg = f"تم رفع ملف الغياب وحفظه في GitHub بنجاح! (تاريخ التحديث: {now_str})" if ok else f"تم الرفع محلياً فقط، وفشل الحفظ في GitHub: {sync_msg}"
-                msg_type = "success" if ok else "error"
+                    # التحقق من قراءة الملف بنجاح
+                    df_check = load_absence_dataframe()
+                    rows_count = len(df_check) if df_check is not None else 0
+
+                    now_str = get_ksa_now_formatted()
+                    set_meta_value("absence_last_update", now_str)
+
+                    # رفع ملف الغياب أولاً ثم قاعدة البيانات
+                    ok, sync_msg = sync_file_to_github(save_path, f"absence_data{ext}", "Update absence_data")
+                    backup_db_to_github()
+
+                    if ok:
+                        msg = f"تم رفع ملف الغياب ({rows_count} سجل) وحفظه في GitHub بنجاح! (تاريخ التحديث: {now_str})"
+                        msg_type = "success"
+                    else:
+                        msg = f"تم حفظ الملف وتفعيله في الموقع ({rows_count} سجل)، وتنبيه GitHub: {sync_msg}"
+                        msg_type = "success" if rows_count > 0 else "error"
+            except Exception as e:
+                msg = f"حدث خطأ أثناء رفع ملف الغياب: {str(e)}"
+                msg_type = "error"
 
         elif action == "upload_so09_file":
             if not session.get("logged_in"): return redirect(url_for("admin"))
@@ -1058,10 +1086,9 @@ def admin():
                 ext = os.path.splitext(file.filename)[1].lower()
                 for old_ext in ['.xlsx', '.xls', '.csv']:
                     old_path = os.path.join(BASE_DIR, f"so09_data{old_ext}")
-                    if os.path.exists(old_path):
+                    if os.path.exists(old_path) and old_ext != ext:
                         try: os.remove(old_path)
                         except Exception: pass
-                    if old_ext != ext:
                         delete_file_from_github(f"so09_data{old_ext}")
                 save_path = os.path.join(BASE_DIR, f"so09_data{ext}")
                 file.save(save_path)
