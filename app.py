@@ -797,12 +797,28 @@ def api_absence_records_query():
     is_admin = session.get("logged_in", False)
     trainer_id = session.get("trainer_id", None)
 
-    if source == "trainer" and not trainer_id:
-        return jsonify({"success": False, "message": "غير مصرح للمدرب"}), 403
-    elif source == "admin" and not is_admin:
-        return jsonify({"success": False, "message": "غير مصرح للإدارة"}), 403
-    elif not is_admin and not trainer_id:
-        return jsonify({"success": False, "message": "غير مصرح"}), 403
+    view_mode = request.args.get("view_mode", "role_scope")  # 'my_sections' أو 'role_scope'
+
+    if source == "trainer":
+        # إذا كان مدرباً عادياً، أو كان رئيس قسم/مسؤول واختار عرض "شعبي الخاصة فقط"
+        if trainer_role == "trainer" or view_mode == "my_sections":
+            assigned_sections = get_trainer_sections(trainer_id)
+            if assigned_sections:
+                filtered['sec_clean'] = filtered['أرقام شعب المقرر'].astype(str).apply(lambda x: str(x).split('.')[0].strip())
+                filtered = filtered[filtered['sec_clean'].isin(assigned_sections)]
+            else:
+                filtered = filtered.iloc[0:0]
+        elif trainer_role == "head_of_dept":
+            if trainer_dept and 'اسم القسم' in filtered.columns:
+                filtered = filtered[filtered['اسم القسم'] == trainer_dept]
+            else:
+                filtered = filtered.iloc[0:0]
+        elif trainer_role in FULL_ACCESS_ROLES:
+            if dept_filter != "ALL" and 'اسم القسم' in filtered.columns:
+                filtered = filtered[filtered['اسم القسم'] == dept_filter]
+    else:
+        if dept_filter != "ALL" and 'اسم القسم' in filtered.columns:
+            filtered = filtered[filtered['اسم القسم'] == dept_filter]
 
     trainer_role = session.get("trainer_role", "trainer")
     trainer_dept = session.get("trainer_dept", "")
