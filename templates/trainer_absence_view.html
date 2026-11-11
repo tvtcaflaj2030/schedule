@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>متابعة كشوفات الغياب والإنذارات — بوابة المدرب</title>
+    <title>متابعة كشوفات الغياب والإنذارات — بوابة المدربين والمسؤولين</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -28,8 +28,8 @@
                 </a>
                 <div>
                     <h1 class="font-black text-sm sm:text-base text-slate-800">كشوفات متابعة الغياب والإنذارات</h1>
-                    <p class="text-[11px] text-slate-400">
-                        {{ trainer_name }} ({{ 'اطلاع كامل كمسؤول' if trainer_role == 'manager' else 'المتدربين المسندين لشعبك فقط' }})
+                    <p class="text-[11px] text-slate-500 font-bold">
+                        {{ trainer_name }} — <span class="text-emerald-800">{{ role_label }}</span>
                     </p>
                 </div>
             </div>
@@ -52,7 +52,7 @@
         <div class="bg-rose-50/90 border border-rose-200 rounded-2xl px-4 py-3 flex items-center justify-center gap-2 shadow-sm no-print">
             <i class="fa-solid fa-clock-rotate-left text-red-600 text-sm"></i>
             <p class="text-red-600 font-extrabold text-xs sm:text-sm text-center">
-                تنبيه: اخر تحديث لبيانات الحضور والغياب بتاريخ  (<span>{{ absence_last_update }}</span>)
+                تنبيه: اخر تحديث لبيانات الحضور والغياب بتاريخ ووقت (<span>{{ absence_last_update }}</span>)
             </p>
         </div>
         {% endif %}
@@ -67,7 +67,7 @@
                 </div>
                 <div class="text-center">
                     <h2 class="text-base font-black">كشف متابعة الإنذارات ونسب الغياب</h2>
-                    <p class="text-xs font-bold text-slate-600 mt-1">المدرب: {{ trainer_name }}</p>
+                    <p class="text-xs font-bold text-slate-600 mt-1">{{ trainer_name }} ({{ role_label }})</p>
                     {% if absence_last_update %}
                     <p class="text-[10px] font-bold text-slate-500 mt-0.5">آخر تحديث للبيانات: {{ absence_last_update }}</p>
                     {% endif %}
@@ -105,10 +105,10 @@
             </div>
         </section>
 
-        <!-- شريط التصفية المحدث ليشمل البرنامج / الدبلوم -->
+        <!-- شريط التصفية المحدث حسب المنصب (مسؤول/وكيل/مرشد أو رئيس قسم أو مدرب) -->
         <section class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3 no-print">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                {% if trainer_role == 'manager' %}
+                {% if is_full_access %}
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">القسم التدريبي:</label>
                     <select id="filter-department" onchange="fetchData(true)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
@@ -117,6 +117,14 @@
                         <option value="{{ d }}">{{ d }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                {% elif trainer_role == 'head_of_dept' %}
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">نطاق رئاسة القسم:</label>
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs font-extrabold text-blue-900 truncate">
+                        <i class="fa-solid fa-building-user ml-1"></i>
+                        {{ trainer_dept if trainer_dept else 'لم يتم ربط القسم من الإدارة بعد' }}
+                    </div>
                 </div>
                 {% else %}
                 <div>
@@ -140,7 +148,7 @@
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">اسم المقرر:</label>
                     <select id="filter-course" onchange="fetchData(false)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
-                        <option value="ALL">{% if trainer_role == 'manager' %}كافة المقررات{% else %}كافة مقرراتي التدريبية{% endif %}</option>
+                        <option value="ALL">{% if is_full_access %}كافة المقررات{% elif trainer_role == 'head_of_dept' %}كافة مقررات القسم{% else %}كافة مقرراتي التدريبية{% endif %}</option>
                         {% for c in courses %}
                         <option value="{{ c }}">{{ c }}</option>
                         {% endfor %}
@@ -252,7 +260,7 @@
 
                         if (courseSelect && data.courses) {
                             const currentCourse = courseSelect.value;
-                            const defaultText = '{{ "كافة المقررات" if trainer_role == "manager" else "كافة مقرراتي التدريبية" }}';
+                            const defaultText = '{% if is_full_access %}كافة المقررات{% elif trainer_role == "head_of_dept" %}كافة مقررات القسم{% else %}كافة مقرراتي التدريبية{% endif %}';
                             courseSelect.innerHTML = `<option value="ALL">${defaultText}</option>`;
                             data.courses.forEach(c => {
                                 const opt = document.createElement('option');
@@ -284,7 +292,7 @@
             tbody.innerHTML = '';
 
             if (records.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="text-center p-8 text-slate-400 font-bold">لا توجد سجلات مطابقة في نطاقك التدريبي. تأكد من رفع ملف الشعب (SO09) لربط شعبك التدريبية.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center p-8 text-slate-400 font-bold">لا توجد سجلات مطابقة في نطاق صلاحيتك الحالي.</td></tr>';
                 return;
             }
 
