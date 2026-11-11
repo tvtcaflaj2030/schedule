@@ -47,6 +47,32 @@
 
     <main class="max-w-7xl mx-auto px-4 py-6 space-y-5">
 
+        <!-- مفتاح التبديل بين (شعبي الخاصة كمدرب) و (نطاق الإشراف كرئيس قسم أو مسؤول) -->
+        {% if trainer_role != 'trainer' %}
+        <div class="bg-white p-2 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-2 no-print">
+            <div class="flex items-center gap-2 px-3 py-1">
+                <i class="fa-solid fa-sliders text-emerald-700 text-sm"></i>
+                <span class="text-xs font-black text-slate-700">تحديد وضع العرض والخصوصية:</span>
+            </div>
+            <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
+                <button type="button" id="btn-mode-my" onclick="setViewMode('my_sections')" class="flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 bg-white text-emerald-900 shadow-sm">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                    <span>شعبي التدريبية فقط (كمدرب)</span>
+                </button>
+                <button type="button" id="btn-mode-scope" onclick="setViewMode('role_scope')" class="flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900">
+                    <i class="fa-solid fa-building-shield"></i>
+                    <span>
+                        {% if trainer_role == 'head_of_dept' %}
+                        كشوفات القسم كاملة ({{ trainer_dept or 'رئيس قسم' }})
+                        {% else %}
+                        الإشراف العام ({{ role_label }})
+                        {% endif %}
+                    </span>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- تنبيه آخر تحديث لبيانات الغياب في الأعلى باللون الأحمر العريض -->
         {% if absence_last_update %}
         <div class="bg-rose-50/90 border border-rose-200 rounded-2xl px-4 py-3 flex items-center justify-center gap-2 shadow-sm no-print">
@@ -105,53 +131,41 @@
             </div>
         </section>
 
-        <!-- شريط التصفية المحدث حسب المنصب (مسؤول/وكيل/مرشد أو رئيس قسم أو مدرب) -->
+        <!-- شريط التصفية -->
         <section class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3 no-print">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                {% if is_full_access %}
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">القسم التدريبي:</label>
-                    <select id="filter-department" onchange="fetchData(true)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
-                        <option value="ALL">كافة الأقسام التدريبية</option>
-                        {% for d in departments %}
-                        <option value="{{ d }}">{{ d }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% elif trainer_role == 'head_of_dept' %}
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">نطاق رئاسة القسم:</label>
-                    <div class="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs font-extrabold text-blue-900 truncate">
-                        <i class="fa-solid fa-building-user ml-1"></i>
-                        {{ trainer_dept if trainer_dept else 'لم يتم ربط القسم من الإدارة بعد' }}
+                <div id="scope-box-container">
+                    {% if is_full_access %}
+                    <div id="dept-select-wrapper" class="hidden">
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">القسم التدريبي:</label>
+                        <select id="filter-department" onchange="fetchData(true)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
+                            <option value="ALL">كافة الأقسام التدريبية</option>
+                            {% for d in departments %}
+                            <option value="{{ d }}">{{ d }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div id="static-scope-wrapper">
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">النطاق المعروض حالياً:</label>
+                        <div id="static-scope-label" class="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-xs font-extrabold text-emerald-900 truncate">
+                            شعبك التدريبية المسندة فقط
+                        </div>
                     </div>
                 </div>
-                {% else %}
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">النطاق التدريبي:</label>
-                    <div class="bg-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-600">
-                        شعبك التدريبية المسندة فقط
-                    </div>
-                </div>
-                {% endif %}
 
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">البرنامج / الدبلوم:</label>
                     <select id="filter-program" onchange="fetchData(false)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
                         <option value="ALL">كافة البرامج التدريبية</option>
-                        {% for p in programs %}
-                        <option value="{{ p }}">{{ p }}</option>
-                        {% endfor %}
                     </select>
                 </div>
 
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">اسم المقرر:</label>
                     <select id="filter-course" onchange="fetchData(false)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-700">
-                        <option value="ALL">{% if is_full_access %}كافة المقررات{% elif trainer_role == 'head_of_dept' %}كافة مقررات القسم{% else %}كافة مقرراتي التدريبية{% endif %}</option>
-                        {% for c in courses %}
-                        <option value="{{ c }}">{{ c }}</option>
-                        {% endfor %}
+                        <option value="ALL">كافة المقررات</option>
                     </select>
                 </div>
 
@@ -214,11 +228,62 @@
     <script>
         document.getElementById('current-print-date') && (document.getElementById('current-print-date').textContent = new Date().toLocaleDateString('ar-SA'));
 
+        const trainerRole = "{{ trainer_role }}";
+        const trainerDept = "{{ trainer_dept }}";
+        const isFullAccess = {{ 'true' if is_full_access else 'false' }};
+
+        // يبدأ افتراضياً بعرض "شعبي الخاصة فقط" لحماية الخصوصية وعدم خلط الشعب مع القسم
+        let currentViewMode = 'my_sections';
         let cachedData = [];
+
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            const btnMy = document.getElementById('btn-mode-my');
+            const btnScope = document.getElementById('btn-mode-scope');
+            const deptWrapper = document.getElementById('dept-select-wrapper');
+            const staticWrapper = document.getElementById('static-scope-wrapper');
+            const staticLabel = document.getElementById('static-scope-label');
+
+            if (btnMy && btnScope) {
+                if (mode === 'my_sections') {
+                    btnMy.className = "flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 bg-white text-emerald-900 shadow-sm";
+                    btnScope.className = "flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900";
+                } else {
+                    btnScope.className = "flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 bg-white text-blue-900 shadow-sm";
+                    btnMy.className = "flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900";
+                }
+            }
+
+            if (mode === 'my_sections') {
+                if (deptWrapper) deptWrapper.classList.add('hidden');
+                if (staticWrapper) staticWrapper.classList.remove('hidden');
+                if (staticLabel) {
+                    staticLabel.className = "bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-xs font-extrabold text-emerald-900 truncate";
+                    staticLabel.textContent = "شعبك التدريبية المسندة فقط";
+                }
+            } else {
+                if (isFullAccess) {
+                    if (deptWrapper) deptWrapper.classList.remove('hidden');
+                    if (staticWrapper) staticWrapper.classList.add('hidden');
+                } else if (trainerRole === 'head_of_dept') {
+                    if (deptWrapper) deptWrapper.classList.add('hidden');
+                    if (staticWrapper) staticWrapper.classList.remove('hidden');
+                    if (staticLabel) {
+                        staticLabel.className = "bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs font-extrabold text-blue-900 truncate";
+                        staticLabel.textContent = trainerDept ? `كافة شعب قسم: ${trainerDept}` : "لم يتم تحديد القسم من الإدارة";
+                    }
+                }
+            }
+
+            // إعادة تصفير الفلاتر الفرعية عند تبديل الوضع وجلب البيانات
+            document.getElementById('filter-program').value = 'ALL';
+            document.getElementById('filter-course').value = 'ALL';
+            fetchData(true);
+        }
 
         async function fetchData(updateLists = false) {
             const deptEl = document.getElementById('filter-department');
-            const dept = deptEl ? deptEl.value : 'ALL';
+            const dept = (currentViewMode === 'role_scope' && deptEl) ? deptEl.value : 'ALL';
             const programSelect = document.getElementById('filter-program');
             const program = programSelect ? programSelect.value : 'ALL';
             const courseSelect = document.getElementById('filter-course');
@@ -229,7 +294,7 @@
             tbody.innerHTML = '<tr><td colspan="9" class="text-center p-8 text-slate-400 font-bold"><i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري استرجاع الكشف...</td></tr>';
 
             try {
-                const res = await fetch(`/api/absence_records_query?source=trainer&department=${encodeURIComponent(dept)}&program=${encodeURIComponent(program)}&course=${encodeURIComponent(course)}&status=${status}`);
+                const res = await fetch(`/api/absence_records_query?source=trainer&view_mode=${currentViewMode}&department=${encodeURIComponent(dept)}&program=${encodeURIComponent(program)}&course=${encodeURIComponent(course)}&status=${status}`);
                 const data = await res.json();
 
                 if (data.success) {
@@ -260,7 +325,7 @@
 
                         if (courseSelect && data.courses) {
                             const currentCourse = courseSelect.value;
-                            const defaultText = '{% if is_full_access %}كافة المقررات{% elif trainer_role == "head_of_dept" %}كافة مقررات القسم{% else %}كافة مقرراتي التدريبية{% endif %}';
+                            const defaultText = (currentViewMode === 'my_sections') ? 'كافة مقرراتي التدريبية' : 'كافة المقررات';
                             courseSelect.innerHTML = `<option value="ALL">${defaultText}</option>`;
                             data.courses.forEach(c => {
                                 const opt = document.createElement('option');
@@ -292,7 +357,10 @@
             tbody.innerHTML = '';
 
             if (records.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="text-center p-8 text-slate-400 font-bold">لا توجد سجلات مطابقة في نطاق صلاحيتك الحالي.</td></tr>';
+                const emptyMsg = (currentViewMode === 'my_sections' && trainerRole !== 'trainer')
+                    ? 'لا توجد شعب تدريبية مسندة لرقمك الوظيفي كمدرب. اضغط على زر (كشوفات القسم / الإشراف العام) في الأعلى لاستعراض بيانات منصبك.'
+                    : 'لا توجد سجلات مطابقة في هذا النطاق.';
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center p-8 text-slate-400 font-bold">${emptyMsg}</td></tr>`;
                 return;
             }
 
@@ -365,7 +433,15 @@
             link.click();
         }
 
-        window.addEventListener('DOMContentLoaded', () => fetchData(true));
+        window.addEventListener('DOMContentLoaded', () => {
+            // إذا كان هناك باراميتر mode=scope في الرابط يفتح مباشرة على وضع الإشراف، وإلا يفتح على شعبه الخاصة
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('mode') === 'scope' && trainerRole !== 'trainer') {
+                setViewMode('role_scope');
+            } else {
+                setViewMode('my_sections');
+            }
+        });
     </script>
 </body>
 </html>
