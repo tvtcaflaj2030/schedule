@@ -593,7 +593,42 @@ def search_schedule():
     pages = find_student_pages(SCHEDULES_PDF, trainee_id)
     if not pages:
         return jsonify({"success": False, "message": "لم يتم العثور على جدول مطابق لهذا الرقم."})
-    return jsonify({"success": True, "pages": ",".join(map(str, pages))})
+    pages_str = ",".join(map(str, pages))
+    return jsonify({
+        "success": True,
+        "pages": pages_str,
+        "pdf_url": f"/get_schedule_pdf?pages={pages_str}&trainee_id={trainee_id}"
+    })
+
+@app.route("/get_schedule_pdf")
+def get_schedule_pdf():
+    pages_param = request.args.get("pages", "")
+    trainee_id = normalize_digits(request.args.get("trainee_id", "")).strip()
+    if not pages_param or not os.path.exists(SCHEDULES_PDF):
+        return """
+        <div style='font-family:sans-serif; text-align:center; padding:50px; direction:rtl;'>
+            <h2 style='color:#b91c1c;'>ملف جداول المتدربين غير متوفر حالياً</h2>
+            <p style='color:#64748b;'>يرجى التأكد من رفع ملف الجداول من قبل الإدارة أو إعادة المحاولة.</p>
+            <a href='/schedule' style='display:inline-block; margin-top:15px; padding:10px 20px; background:#0f2d59; color:#fff; text-decoration:none; border-radius:8px;'>العودة لصفحة الاستعلام</a>
+        </div>
+        """, 404
+
+    try:
+        page_indices = [int(p) for p in pages_param.split(",") if p.isdigit()][:10]
+        pdf_bytes = io.BytesIO()
+        with fitz.open(SCHEDULES_PDF) as doc, fitz.open() as out_doc:
+            for p_num in page_indices:
+                if 0 <= p_num < len(doc):
+                    out_doc.insert_pdf(doc, from_page=p_num, to_page=p_num)
+            if len(out_doc) == 0:
+                return "لم يتم العثور على صفحات مطابقة", 404
+            out_doc.save(pdf_bytes)
+
+        pdf_bytes.seek(0)
+        filename = f"جدول_المتدرب_{trainee_id}.pdf" if trainee_id else "جدول_المتدرب.pdf"
+        return send_file(pdf_bytes, mimetype="application/pdf", download_name=filename)
+    except Exception as e:
+        return str(e), 500
 
 @app.route("/get_schedule_image")
 def get_schedule_image():
