@@ -21,9 +21,10 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .alert { display: none; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; }
         .alert-error { background-color: #fed7d7; color: #9b2c2c; }
-        .image-wrapper { border: 1.5px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fafafa; margin-top: 15px; margin-bottom: 15px; max-height: 480px; overflow-y: auto; }
-        .image-wrapper img { width: 100%; height: auto; display: block; }
-        .btn-download { display: inline-block; padding: 10px 20px; background-color: #00877d; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 13.5px; margin-bottom: 10px; }
+        .result-box { border: 1.5px solid #d1fae5; background: #f0fdf4; border-radius: 14px; padding: 18px; margin-top: 15px; margin-bottom: 10px; }
+        .result-title { font-size: 14px; font-weight: 700; color: #065f46; margin-bottom: 12px; }
+        .btn-open-pdf { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 22px; background-color: #0f2d59; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 13.5px; }
+        .btn-open-pdf:hover { background-color: #091d3b; }
         .back-link { display: inline-block; margin-top: 20px; color: #718096; text-decoration: none; font-size: 13px; font-weight: bold; }
         .back-link:hover { color: #0f2d59; }
         .card-footer-notes { margin-top: 25px; padding-top: 12px; border-top: 1px dashed #e2e8f0; display: flex; flex-direction: column; gap: 3px; }
@@ -37,7 +38,7 @@
 <div class="container">
     <div class="calendar-icon"><i class="fa-solid fa-calendar-check"></i></div>
     <h1>استعلام الجدول التدريبي</h1>
-    <p class="subtitle"المعهد الصناعي الثانوي بالأفلاج</p>
+    <p class="subtitle">المعهد الصناعي الثانوي بالأفلاج</p>
 
     <form id="search-form">
         <div class="form-group">
@@ -49,11 +50,13 @@
     <div class="loader" id="loader"></div>
     <div class="alert alert-error" id="error-box"></div>
 
-    <div id="result-box" style="display:none;">
-        <div class="image-wrapper">
-            <img id="schedule-img" src="" alt="جدول المتدرب">
-        </div>
-        <a href="" id="download-link" download="جدول_المتدرب.png" class="btn-download">📥 حفظ الجدول كصورة</a>
+    <div id="result-box" class="result-box" style="display:none;">
+        <p class="result-title">تم العثور على الجدول التدريبي</p>
+        <a href="" id="open-pdf-link" target="_blank" rel="noopener" class="btn-open-pdf">
+            <i class="fa-solid fa-file-pdf"></i>
+            <span>عرض وطباعة الجدول (PDF)</span>
+            <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 11px;"></i>
+        </a>
     </div>
 
     <br>
@@ -74,8 +77,7 @@
     const loader = document.getElementById('loader');
     const errorBox = document.getElementById('error-box');
     const resultBox = document.getElementById('result-box');
-    const scheduleImg = document.getElementById('schedule-img');
-    const downloadLink = document.getElementById('download-link');
+    const openPdfLink = document.getElementById('open-pdf-link');
 
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -97,10 +99,15 @@
             submitBtn.disabled = false;
 
             if (data.success) {
-                const imgUrl = `/get_schedule_image?pages=${data.pages}&t=${new Date().getTime()}`;
-                scheduleImg.src = imgUrl;
-                downloadLink.href = imgUrl;
+                const pdfUrl = data.pdf_url
+                    ? `${data.pdf_url}?t=${new Date().getTime()}`
+                    : `/get_schedule_pdf?pages=${encodeURIComponent(data.pages)}&t=${new Date().getTime()}`;
+
+                openPdfLink.href = pdfUrl;
                 resultBox.style.display = 'block';
+
+                // فتح ملف الـ PDF في صفحة مستقلة بنفس أسلوب جدول المدرب
+                window.open(pdfUrl, '_blank', 'noopener');
             } else {
                 errorBox.innerText = data.message;
                 errorBox.style.display = 'block';
