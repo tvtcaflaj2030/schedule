@@ -4,6 +4,9 @@ import os
 import time
 import json
 import shutil
+import sqlite3
+import base64
+import requests
 from datetime import datetime, timedelta, timezone
 import fitz  # PyMuPDF
 import pandas as pd
@@ -22,45 +25,13 @@ app.config.update(
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SCHEDULES_PDF = os.path.join(BASE_DIR, "schedules.pdf")
+TRAINERS_SCHEDULES_PDF = os.path.join(BASE_DIR, "trainers_schedules.pdf")
+DB_PATH = os.path.join(BASE_DIR, "attendance_archive.db")
 
-# --- 2. إعداد مسارات OneDrive المؤسسي (مزامنة مباشرة بدون قواعد بيانات) ---
-def resolve_onedrive_data_dir():
-    # الأولوية لمتغير البيئة إذا تم تحديده يدوياً
-    custom_dir = os.environ.get("ONEDRIVE_DATA_DIR", "").strip()
-    if custom_dir and os.path.exists(custom_dir):
-        return custom_dir
-
-    # البحث التلقائي عن مجلد OneDrive المؤسسي في نظام ويندوز
-   # البحث التلقائي عن مجلد OneDrive المؤسسي أولاً في نظام ويندوز
-    user_profile = os.environ.get("USERPROFILE", "")
-    if user_profile and os.path.exists(user_profile):
-        folders = os.listdir(user_profile)
-        for folder_name in folders:
-            low = folder_name.lower()
-            if low.startswith("onedrive") and ("technical" in low or "tvtc" in low):
-                return os.path.join(user_profile, folder_name, "TVTC_Portal_Data")
-        for folder_name in folders:
-            if folder_name.lower().startswith("onedrive -"):
-                return os.path.join(user_profile, folder_name, "TVTC_Portal_Data")
-        for folder_name in folders:
-            if folder_name.lower().startswith("onedrive"):
-                return os.path.join(user_profile, folder_name, "TVTC_Portal_Data")
-
-    # مسار احتياطي داخل مجلد المشروع في حال لم يتوفر OneDrive على الجهاز
-    return os.path.join(BASE_DIR, "TVTC_Portal_Data")
-
-DATA_ROOT = resolve_onedrive_data_dir()
-DIR_CURRENT = os.path.join(DATA_ROOT, "01_Current")
-DIR_REPORTS = os.path.join(DATA_ROOT, "02_Admin_Reports")
-DIR_CONFIG = os.path.join(DATA_ROOT, "03_Config")
-
-for d in (DIR_CURRENT, DIR_REPORTS, DIR_CONFIG):
-    os.makedirs(d, exist_ok=True)
-
-SCHEDULES_PDF = os.path.join(DIR_CURRENT, "schedules.pdf")
-TRAINERS_SCHEDULES_PDF = os.path.join(DIR_CURRENT, "trainers_schedules.pdf")
-STAFF_ROLES_XLSX = os.path.join(DIR_CONFIG, "staff_roles.xlsx")
-META_JSON_PATH = os.path.join(DIR_CONFIG, "system_meta.json")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "tvtcaflaj2030/schedule").strip()
+STORAGE_BRANCH = "storage"
 
 # توقيت المملكة العربية السعودية (UTC+3)
 KSA_TZ = timezone(timedelta(hours=3))
@@ -75,7 +46,6 @@ ROLE_LABELS = {
 }
 
 FULL_ACCESS_ROLES = ("general_admin", "manager", "vp", "counselor")
-SINGLETON_ROLES = ("general_admin", "manager", "vp", "counselor")
 
 def get_role_label(role, dept=""):
     base = ROLE_LABELS.get(role, "مدرب")
@@ -89,124 +59,152 @@ def get_ksa_now_formatted():
     hour_12 = now_ksa.hour % 12 or 12
     return f"{now_ksa.strftime('%Y/%m/%d')} الساعة {hour_12:02d}:{now_ksa.minute:02d} {period}"
 
-# --- 3. إدارة الإعدادات والصلاحيات عبر ملفات OneDrive ---
-def set_meta_value(key, value):
-    meta = {}
-    if os.path.exists(META_JSON_PATH):
-        try:
-            with open(META_JSON_PATH, "r", encoding="utf-8") as f:
-                meta = json.load(f)
-        except Exception:
-            meta = {}
-    meta[key] = value
-    with open(META_JSON_PATH, "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
+# --- 2. نظام المزامنة الموثوق مع GitHub (مع إعادة المحاولة التلقائية لمنع التضارب) ---
+def _github_headers():
+    return {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28"
+    }
 
-def get_meta_value(key, default=""):
-    if os.path.exists(META_JSON_PATH):
-        try:
-            with open(META_JSON_PATH, "r", encoding="utf-8") as f:
-                meta = json.load(f)
-            return meta.get(key, default)
-        except Exception:
-            pass
-    return default
-
-def get_absence_last_update_text():
-    return get_meta_value("absence_last_update", "")
-
-def load_staff_roles():
-    cols = ["employee_id", "trainer_name", "department", "role"]
-    if not os.path.exists(STAFF_ROLES_XLSX):
-        df_empty = pd.DataFrame(columns=cols)
-        df_empty.to_excel(STAFF_ROLES_XLSX, index=False)
-        return []
+def ensure_storage_branch():
+    if not GITHUB_TOKEN:
+        return False, "متغير GITHUB_TOKEN غير موجود في إعدادات Render Environment"
     try:
-        df = pd.read_excel(STAFF_ROLES_XLSX, dtype=str).fillna("")
-        for c in cols:
-            if c not in df.columns:
-                df[c] = ""
-        df["employee_id"] = df["employee_id"].apply(clean_employee_id)
-        df = df[df["employee_id"] != ""]
-        return df[cols].to_dict(orient="records")
+        branch_url = f"https://api.github.com/repos/{GITHUB_REPO}/git/ref/heads/{STORAGE_BRANCH}"
+        res = requests.get(branch_url, headers=_github_headers(), timeout=15)
+        if res.status_code == 200:
+            return True, "فرع storage موجود وجاهز"
+        if res.status_code == 401:
+            return False, "الرمز GITHUB_TOKEN غير صالح أو منتهي الصلاحية (401 Unauthorized)"
+
+        repo_url = f"https://api.github.com/repos/{GITHUB_REPO}"
+        repo_res = requests.get(repo_url, headers=_github_headers(), timeout=15)
+        if repo_res.status_code != 200:
+            return False, f"تعذر الوصول للمستودع ({GITHUB_REPO}): كود {repo_res.status_code}"
+
+        default_branch = repo_res.json().get("default_branch", "main")
+        main_url = f"https://api.github.com/repos/{GITHUB_REPO}/git/ref/heads/{default_branch}"
+        main_res = requests.get(main_url, headers=_github_headers(), timeout=15)
+        if main_res.status_code != 200:
+            return False, f"تعذر قراءة الفرع الرئيسي {default_branch}: كود {main_res.status_code}"
+
+        main_sha = main_res.json()["object"]["sha"]
+        create_url = f"https://api.github.com/repos/{GITHUB_REPO}/git/refs"
+        create_res = requests.post(
+            create_url,
+            headers=_github_headers(),
+            json={"ref": f"refs/heads/{STORAGE_BRANCH}", "sha": main_sha},
+            timeout=15
+        )
+        if create_res.status_code in (200, 201):
+            return True, "تم إنشاء فرع storage الجديد بنجاح"
+        return False, f"فشل إنشاء فرع storage: {create_res.text}"
     except Exception as e:
-        print("Error reading staff_roles.xlsx:", e)
-        return []
+        return False, f"خطأ اتصال بـ GitHub: {str(e)}"
 
-def save_staff_roles(records):
-    cols = ["employee_id", "trainer_name", "department", "role"]
-    df = pd.DataFrame(records, columns=cols) if records else pd.DataFrame(columns=cols)
-    df.to_excel(STAFF_ROLES_XLSX, index=False)
+def sync_file_to_github(local_path, repo_filename, commit_msg="Auto-backup file"):
+    if not GITHUB_TOKEN:
+        return False, "متغير GITHUB_TOKEN غير مضاف في Render"
+    if not os.path.exists(local_path):
+        return False, "الملف المحلي غير موجود"
 
-def get_staff_by_id(emp_id):
-    clean_id = clean_employee_id(emp_id)
-    for r in load_staff_roles():
-        if r["employee_id"] == clean_id:
-            return r
-    return None
+    ok_branch, branch_msg = ensure_storage_branch()
+    if not ok_branch:
+        return False, branch_msg
 
-def assign_staff_role_with_singleton_check(emp_id, trainer_name, new_role, new_dept="", force_replace=False):
-    """
-    تطبيق قاعدة منع ازدواج المناصب الإدارية الفردية:
-    - المناصب العامة الفردية (vp, counselor, general_admin) لا يشغلها إلا شخص واحد.
-    - منصب رئيس قسم (head_of_dept) لا يشغله إلا شخص واحد لكل قسم على حدة.
-    - إذا كان المنصب مشغولاً ولم يتم التأكيد (force_replace=False)، يعيد تحذيراً باسم الشاغل الحالي.
-    """
-    clean_id = clean_employee_id(emp_id)
-    new_dept = (new_dept or "").strip()
-    if new_role != "head_of_dept":
-        new_dept = ""
+    try:
+        with open(local_path, "rb") as f:
+            raw_bytes = f.read()
+        content_encoded = base64.b64encode(raw_bytes).decode("utf-8")
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{repo_filename}"
 
-    records = load_staff_roles()
-    conflict_user = None
+        # محاولة الرفع حتى 3 مرات لتفادي خطأ 409 Conflict عند تتابع الطلبات
+        last_error = ""
+        for attempt in range(3):
+            get_res = requests.get(url, headers=_github_headers(), params={"ref": STORAGE_BRANCH}, timeout=20)
+            sha = get_res.json().get("sha") if get_res.status_code == 200 else None
 
-    for r in records:
-        if r["employee_id"] == clean_id:
-            continue
-        r_role = r.get("role", "trainer")
-        r_dept = (r.get("department") or "").strip()
+            data = {
+                "message": commit_msg,
+                "content": content_encoded,
+                "branch": STORAGE_BRANCH
+            }
+            if sha:
+                data["sha"] = sha
 
-        if new_role in SINGLETON_ROLES and r_role in SINGLETON_ROLES:
-            if (new_role in ("general_admin", "manager") and r_role in ("general_admin", "manager")) or (new_role == r_role):
-                conflict_user = r
+            put_res = requests.put(url, headers=_github_headers(), json=data, timeout=90)
+            if put_res.status_code in (200, 201):
+                return True, "تم الحفظ في GitHub فرع storage بنجاح"
+            
+            last_error = f"كود {put_res.status_code}: {put_res.json().get('message', '')}"
+            if put_res.status_code in (409, 500, 502, 503, 504):
+                time.sleep(1.0)
+                continue
+            break
+
+        return False, f"رفض GitHub حفظ الملف ({last_error})"
+    except Exception as e:
+        return False, f"استثناء أثناء الرفع إلى GitHub: {str(e)}"
+
+def delete_file_from_github(repo_filename):
+    if not GITHUB_TOKEN:
+        return
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{repo_filename}"
+        get_res = requests.get(url, headers=_github_headers(), params={"ref": STORAGE_BRANCH}, timeout=15)
+        if get_res.status_code == 200:
+            sha = get_res.json().get("sha")
+            requests.delete(
+                url,
+                headers=_github_headers(),
+                json={"message": f"Delete {repo_filename}", "sha": sha, "branch": STORAGE_BRANCH},
+                timeout=20
+            )
+    except Exception as e:
+        print(f"GitHub Delete Error ({repo_filename}):", e)
+
+def backup_db_to_github():
+    return sync_file_to_github(DB_PATH, "attendance_archive.db", "Auto-backup database")
+
+def restore_file_from_github(local_path, repo_filename, only_storage=False):
+    if not GITHUB_TOKEN:
+        return False
+    branches = [STORAGE_BRANCH] if only_storage else [STORAGE_BRANCH, "main"]
+    for branch in branches:
+        try:
+            url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{repo_filename}"
+            res = requests.get(url, headers=_github_headers(), params={"ref": branch}, timeout=25)
+            if res.status_code == 200:
+                file_data = res.json()
+                if file_data.get("content"):
+                    content_bytes = base64.b64decode(file_data["content"])
+                    with open(local_path, "wb") as f:
+                        f.write(content_bytes)
+                    return True
+                elif file_data.get("download_url"):
+                    dl_res = requests.get(file_data["download_url"], headers=_github_headers(), timeout=60)
+                    if dl_res.status_code == 200:
+                        with open(local_path, "wb") as f:
+                            f.write(dl_res.content)
+                        return True
+        except Exception as e:
+            print(f"GitHub Restore Error ({repo_filename} on {branch}):", e)
+    return False
+
+def restore_all_from_github():
+    if not GITHUB_TOKEN:
+        return
+    restore_file_from_github(DB_PATH, "attendance_archive.db", only_storage=True)
+    restore_file_from_github(TRAINERS_SCHEDULES_PDF, "trainers_schedules.pdf", only_storage=True)
+    restore_file_from_github(SCHEDULES_PDF, "schedules.pdf", only_storage=True)
+    for base_name in ["absence_data", "so09_data"]:
+        for ext in ['.xlsx', '.xls', '.csv']:
+            target_path = os.path.join(BASE_DIR, f"{base_name}{ext}")
+            if restore_file_from_github(target_path, f"{base_name}{ext}", only_storage=True):
                 break
-        elif new_role == "head_of_dept" and new_dept and r_role == "head_of_dept" and r_dept == new_dept:
-            conflict_user = r
-            break
 
-    if conflict_user and not force_replace:
-        role_title = get_role_label(new_role, new_dept)
-        return False, f"تنبيه: منصب ({role_title}) مسند حالياً للموظف ({conflict_user['trainer_name']}). هل تريد نقل المنصب إلى الموظف الجديد وإعادة السابق إلى صفة مدرب؟", conflict_user
-
-    # تنفيذ الإحلال التلقائي وإعادة الشاغل السابق إلى مدرب
-    if conflict_user and force_replace:
-        for r in records:
-            if r["employee_id"] == conflict_user["employee_id"]:
-                r["role"] = "trainer"
-                r["department"] = ""
-
-    updated = False
-    for r in records:
-        if r["employee_id"] == clean_id:
-            if trainer_name:
-                r["trainer_name"] = trainer_name
-            r["role"] = new_role
-            r["department"] = new_dept
-            updated = True
-            break
-
-    if not updated and trainer_name:
-        records.append({
-            "employee_id": clean_id,
-            "trainer_name": trainer_name,
-            "department": new_dept,
-            "role": new_role
-        })
-
-    save_staff_roles(records)
-    return True, "تم تحديث الصلاحية بنجاح.", None
-
-# --- 4. نظام الحماية من تخمين كلمات المرور ---
+# --- 3. نظام الحماية من تخمين كلمات المرور ---
 _LOGIN_ATTEMPTS = {}
 MAX_ATTEMPTS = 5
 LOCKOUT_SECONDS = 600
@@ -232,7 +230,7 @@ def record_failed_attempt(ip):
 def clear_failed_attempts(ip):
     _LOGIN_ATTEMPTS.pop(ip, None)
 
-# --- 5. التخزين المؤقت الذكي لقراءة ملفات OneDrive ---
+# --- 4. التخزين المؤقت الذكي مع الاسترجاع التلقائي ---
 _DATAFRAME_CACHE = {
     "absence": {"mtime": None, "path": None, "df": None},
     "so09": {"mtime": None, "path": None, "df": None}
@@ -274,31 +272,78 @@ def is_folded_or_deprived_text(status_str):
     keywords = ["مطوي", "طي قيد", "قيده", "محروم", "حرمان", "منقطع", "انقطاع", "إنقطاع", "مفصول"]
     return any(k in status_str for k in keywords)
 
-def compute_remaining_hours(rate, hours, row):
-    """
-    حساب الساعات المتبقية للمتدرب قبل الوصول لنسبة الحرمان (20%).
-    يستخرج إجمالي ساعات المقرر من العمود المباشر إن وجد، أو يستنتجها من (ساعات الغياب / نسبة الغياب).
-    """
-    total_course_hours = 0.0
-    for col in ['إجمالي ساعات المقرر', 'ساعات المقرر', 'الساعات المعتمدة', 'إجمالي الساعات']:
-        if col in row and pd.notna(row[col]):
-            try:
-                val = float(row[col])
-                if val > 0:
-                    total_course_hours = val
-                    break
-            except (ValueError, TypeError):
-                pass
+# --- 5. إدارة قاعدة البيانات والترقية التلقائية للأعمدة ---
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH, timeout=15)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-    if total_course_hours <= 0 and rate > 0 and hours > 0:
-        total_course_hours = round((hours * 100.0) / rate)
+def init_db():
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS approved_reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                approval_date TEXT NOT NULL,
+                training_week TEXT NOT NULL,
+                training_term TEXT NOT NULL,
+                department TEXT NOT NULL,
+                trainers_count INTEGER DEFAULT 0,
+                trainers_attendance_rate REAL DEFAULT 0,
+                trainees_count INTEGER DEFAULT 0,
+                trainees_present_count INTEGER DEFAULT 0,
+                trainees_attendance_rate REAL DEFAULT 0,
+                sections_total INTEGER DEFAULT 0,
+                sections_executed INTEGER DEFAULT 0,
+                notes TEXT,
+                full_data_json TEXT NOT NULL
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS trainers_roles (
+                employee_id TEXT PRIMARY KEY,
+                trainer_name TEXT NOT NULL,
+                department TEXT DEFAULT '',
+                role TEXT DEFAULT 'trainer'
+            )
+        ''')
+        # فحص وإضافة عمود department تلقائياً إذا كانت قاعدة البيانات قديمة
+        cursor.execute("PRAGMA table_info(trainers_roles)")
+        cols = [col[1] for col in cursor.fetchall()]
+        if "department" not in cols:
+            cursor.execute("ALTER TABLE trainers_roles ADD COLUMN department TEXT DEFAULT ''")
 
-    if total_course_hours > 0:
-        max_allowed_hours = total_course_hours * 0.20
-        remaining = max(0.0, round(max_allowed_hours - hours, 1))
-        return remaining, round(max_allowed_hours, 1)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS system_meta (
+                meta_key TEXT PRIMARY KEY,
+                meta_value TEXT NOT NULL
+            )
+        ''')
+        conn.commit()
 
-    return None, None
+def set_meta_value(key, value):
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO system_meta (meta_key, meta_value) VALUES (?, ?)", (key, value))
+        conn.commit()
+
+def get_meta_value(key, default=""):
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT meta_value FROM system_meta WHERE meta_key = ?", (key,))
+            row = cursor.fetchone()
+            if row and row["meta_value"]:
+                return row["meta_value"]
+    except Exception:
+        pass
+    return default
+
+def get_absence_last_update_text():
+    return get_meta_value("absence_last_update", "")
+
+restore_all_from_github()
+init_db()
 
 SERVICES_LIST = [
     {"title": "الخدمات الذاتية للمتدربين (رايات)", "url": "https://tvtc.gov.sa/ar/Departments/tvtcdepartments/Rayat/pages/E-Services.aspx", "icon": "fa-user-gear"},
@@ -318,8 +363,17 @@ TRAINER_SERVICES = [
 
 def _load_cached_dataframe(cache_key, base_filename):
     possible_exts = ['.xlsx', '.xls', '.csv']
+    
+    # استرجاع تلقائي من فرع storage إذا لم يكن الملف موجوداً محلياً
+    file_exists_locally = any(os.path.exists(os.path.join(BASE_DIR, f"{base_filename}{ext}")) for ext in possible_exts)
+    if not file_exists_locally and GITHUB_TOKEN:
+        for ext in possible_exts:
+            target_path = os.path.join(BASE_DIR, f"{base_filename}{ext}")
+            if restore_file_from_github(target_path, f"{base_filename}{ext}", only_storage=True):
+                break
+
     for ext in possible_exts:
-        filepath = os.path.join(DIR_CURRENT, f"{base_filename}{ext}")
+        filepath = os.path.join(BASE_DIR, f"{base_filename}{ext}")
         if os.path.exists(filepath):
             try:
                 mtime = os.path.getmtime(filepath)
@@ -335,7 +389,8 @@ def _load_cached_dataframe(cache_key, base_filename):
                     except UnicodeDecodeError:
                         df = pd.read_csv(filepath, encoding='windows-1256')
 
-                df.columns = [str(c).replace('﻿', '').strip() for c in df.columns]
+                # تنظيف أسماء الأعمدة من أي مسافات أو رموز BOM خفية
+                df.columns = [str(c).replace('\ufeff', '').strip() for c in df.columns]
 
                 if cache_key == "absence" and 'رقم المتدرب' in df.columns:
                     df['رقم_نظيف'] = df['رقم المتدرب'].astype(str).apply(lambda x: normalize_digits(x).split('.')[0].strip())
@@ -411,7 +466,7 @@ def find_trainer_pages(pdf_path, search_term):
                 for page_num in range(len(doc)):
                     raw_t = doc[page_num].get_text()
                     norm_t = normalize_digits(raw_t)
-                    no_zeros_t = re.sub(r'0+(\d+)', r'', norm_t)
+                    no_zeros_t = re.sub(r'\b0+(\d+)\b', r'\1', norm_t)
                     pages_raw.append(raw_t)
                     pages_no_zeros.append(no_zeros_t)
             cache["mtime"] = mtime
@@ -426,114 +481,7 @@ def find_trainer_pages(pdf_path, search_term):
     except Exception:
         return []
 
-# --- 6. توليد تقارير الحضور الأسبوعية بصيغة PDF وحفظها في مجلد الإدارة في OneDrive ---
-def generate_weekly_admin_pdf(data, pdf_filepath):
-    """
-    توليد تقرير حضور أسبوعي رسمي بصيغة PDF باستخدام PyMuPDF (HTML-to-PDF)
-    وحفظه في مجلد 02_Admin_Reports داخل OneDrive للإدارة فقط.
-    """
-    kpis = data.get("kpis", {})
-    training_week = data.get("training_week", "غير محدد")
-    training_term = data.get("training_term", "الفصل التدريبي")
-    department = data.get("department", "جميع الأقسام")
-    approval_date = data.get("approval_date", get_ksa_now_formatted())
-    notes = data.get("notes", "لا توجد ملاحظات إضافية.")
-    details = data.get("details", [])
-
-    rows_html = ""
-    if isinstance(details, list) and details:
-        for idx, item in enumerate(details, 1):
-            if isinstance(item, dict):
-                col1 = item.get("name") or item.get("department") or item.get("course") or f"بند {idx}"
-                col2 = item.get("rate") or item.get("attendance_rate") or "-"
-                col3 = item.get("status") or item.get("notes") or "-"
-                rows_html += f"<tr><td>{idx}</td><td>{col1}</td><td>{col2}</td><td>{col3}</td></tr>"
-
-    table_section = ""
-    if rows_html:
-        table_section = f"""
-        <h3>تفاصيل المؤشرات والبيانات المسجلة</h3>
-        <table>
-            <thead>
-                <tr><th>#</th><th>البيان / القسم</th><th>النسبة / القيمة</th><th>ملاحظات</th></tr>
-            </thead>
-            <tbody>{rows_html}</tbody>
-        </table>
-        """
-
-    html_content = f"""
-    <!DOCTYPE html>
-    <html lang="ar" dir="rtl">
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body {{ font-family: Arial, Tahoma, sans-serif; direction: rtl; color: #1e293b; padding: 20px; }}
-            .header {{ text-align: center; border-bottom: 2px solid #065f46; padding-bottom: 12px; margin-bottom: 20px; }}
-            .header h1 {{ margin: 0; font-size: 18px; color: #065f46; }}
-            .header p {{ margin: 4px 0; font-size: 12px; color: #475569; }}
-            .meta-box {{ background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 18px; font-size: 12px; }}
-            .meta-box span {{ display: inline-block; margin-left: 20px; font-weight: bold; }}
-            .kpi-grid {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
-            .kpi-grid td {{ border: 1px solid #cbd5e1; padding: 10px; text-align: center; background: #ffffff; }}
-            .kpi-title {{ font-size: 11px; color: #64748b; display: block; }}
-            .kpi-val {{ font-size: 16px; font-weight: bold; color: #0f172a; margin-top: 4px; display: block; }}
-            table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }}
-            th {{ background: #065f46; color: #ffffff; padding: 8px; border: 1px solid #065f46; }}
-            td {{ padding: 7px; border: 1px solid #cbd5e1; text-align: center; }}
-            .notes {{ background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; font-size: 12px; margin-top: 18px; }}
-            .footer {{ margin-top: 30px; text-align: left; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px; }}
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>المؤسسة العامة للتدريب التقني والمهني</h1>
-            <p>المعهد الصناعي الثانوي بالأفلاج — تقرير متابعة الحضور وسير العملية التدريبية (للإدارة فقط)</p>
-        </div>
-
-        <div class="meta-box">
-            <span>الأسبوع التدريبي: {training_week}</span>
-            <span>الفصل التدريبي: {training_term}</span>
-            <span>النطاق / القسم: {department}</span>
-            <span>تاريخ الاعتماد: {approval_date}</span>
-        </div>
-
-        <table class="kpi-grid">
-            <tr>
-                <td><span class="kpi-title">عدد المدربين</span><span class="kpi-val">{kpis.get('trainers_count', 0)}</span></td>
-                <td><span class="kpi-title">نسبة حضور المدربين</span><span class="kpi-val">{kpis.get('trainers_attendance_rate', 0)}%</span></td>
-                <td><span class="kpi-title">إجمالي المتدربين</span><span class="kpi-val">{kpis.get('trainees_count', 0)}</span></td>
-                <td><span class="kpi-title">نسبة حضور المتدربين</span><span class="kpi-val">{kpis.get('trainees_attendance_rate', 0)}%</span></td>
-                <td><span class="kpi-title">الشعب المنفذة / الإجمالية</span><span class="kpi-val">{kpis.get('sections_executed', 0)} / {kpis.get('sections_total', 0)}</span></td>
-            </tr>
-        </table>
-
-        {table_section}
-
-        <div class="notes">
-            <strong>ملاحظات الإدارة والإجراءات التصحيحية:</strong><br>
-            {notes}
-        </div>
-
-        <div class="footer">
-            تم توليد هذا التقرير آلياً وحفظه في سحابة OneDrive المؤسسية للمعهد.
-        </div>
-    </body>
-    </html>
-    """
-
-    story = fitz.Story(html=html_content)
-    writer = fitz.DocumentWriter(pdf_filepath)
-    mediabox = fitz.paper_rect("a4")
-    where = mediabox + (36, 36, -36, -36)
-    more = True
-    while more:
-        device = writer.begin_page(mediabox)
-        more, _ = story.place(where)
-        story.draw(device)
-        writer.end_page()
-    writer.close()
-
-# --- 7. الواجهات العامة للمتدربين (نسبة الغياب الحالية والساعات المتبقية فقط) ---
+# --- الواجهات العامة للمتدربين ---
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -592,32 +540,25 @@ def search_absence():
         except (ValueError, TypeError):
             hours = 0.0
 
-        remaining_hours, max_allowed_hours = compute_remaining_hours(rate, hours, row)
-
         if is_folded_or_deprived_text(course_status_raw):
             if "مطوي" in course_status_raw or "قيده" in course_status_raw or "انقطاع" in course_status_raw or "إنقطاع" in course_status_raw:
                 status_text = f"تم طي قيد المتدرب من المعهد ({course_status_raw})"
             else:
                 status_text = f"محروم نظاماً ({course_status_raw})"
             status_color = "danger"
-            remaining_hours = 0.0
             if max_rate < 20.0:
                 max_rate = 20.0
         elif rate >= 20.0:
-            status_text = "محروم نظاماً (0 ساعات متبقية)"
+            status_text = "محروم نظاماً"
             status_color = "danger"
-            remaining_hours = 0.0
         elif rate >= 15.0:
-            rem_note = f" — المتبقي: {remaining_hours} ساعة" if remaining_hours is not None else ""
-            status_text = f"إنذار ثانٍ (خطر حرمان){rem_note}"
+            status_text = "إنذار ثانٍ (خطر حرمان)"
             status_color = "warning-high"
         elif rate >= 10.0:
-            rem_note = f" — المتبقي: {remaining_hours} ساعة" if remaining_hours is not None else ""
-            status_text = f"إنذار أول{rem_note}"
+            status_text = "إنذار أول"
             status_color = "warning-low"
         else:
-            rem_note = f" — المتبقي: {remaining_hours} ساعة" if remaining_hours is not None else ""
-            status_text = f"مستمر (وضع آمن){rem_note}"
+            status_text = "مستمر (وضع آمن)"
             status_color = "safe"
 
         if rate > max_rate:
@@ -628,8 +569,6 @@ def search_absence():
             "section_no": str(section_no),
             "absence_rate": round(rate, 2),
             "absence_hours": round(hours, 1),
-            "remaining_hours": remaining_hours,
-            "max_allowed_hours": max_allowed_hours,
             "status_text": status_text,
             "status_color": status_color,
             "course_status": course_status_raw
@@ -722,7 +661,8 @@ def get_schedule_image():
     except Exception as e:
         return str(e), 500
 
-# --- 8. بوابة المدربين والمسؤولين ---
+# --- بوابة المدربين والمسؤولين ---
+
 @app.route("/trainer")
 def trainer_login_page():
     return render_template("trainer_login.html")
@@ -737,7 +677,10 @@ def trainer_login_action():
     if not emp_id:
         return render_template("trainer_login.html", error="يرجى إدخال الرقم الوظيفي.")
 
-    user = get_staff_by_id(emp_id)
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM trainers_roles WHERE employee_id = ?", (emp_id,))
+        user = cursor.fetchone()
 
     if not user:
         df_sec = load_so09_dataframe()
@@ -747,8 +690,12 @@ def trainer_login_action():
                 df_sec['emp_clean'] = df_sec['رقم الحاسب'].astype(str).apply(clean_employee_id)
             matched = df_sec[df_sec['emp_clean'] == emp_id]
             if not matched.empty:
-                t_name = str(matched.iloc[0]['اسم المدرب']).strip()
-                assign_staff_role_with_singleton_check(emp_id, t_name, "trainer", "", force_replace=True)
+                t_name = matched.iloc[0]['اسم المدرب']
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, department, role) VALUES (?, ?, '', 'trainer')", (emp_id, t_name))
+                    conn.commit()
+                backup_db_to_github()
                 found_trainer = {"employee_id": emp_id, "trainer_name": t_name, "department": "", "role": "trainer"}
 
         if not found_trainer:
@@ -761,7 +708,7 @@ def trainer_login_action():
     session["trainer_id"] = emp_id
     session["trainer_name"] = user["trainer_name"]
     session["trainer_role"] = user["role"]
-    session["trainer_dept"] = user.get("department", "")
+    session["trainer_dept"] = user["department"] if "department" in user.keys() and user["department"] else ""
     return redirect(url_for("trainer_dashboard"))
 
 @app.route("/trainer/dashboard")
@@ -770,11 +717,14 @@ def trainer_dashboard():
         return redirect(url_for("trainer_login_page"))
 
     emp_id = session.get("trainer_id")
-    user = get_staff_by_id(emp_id)
-    if user:
-        session["trainer_role"] = user["role"]
-        session["trainer_dept"] = user.get("department", "")
-        session["trainer_name"] = user["trainer_name"]
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT role, department, trainer_name FROM trainers_roles WHERE employee_id = ?", (emp_id,))
+        row = cursor.fetchone()
+        if row:
+            session["trainer_role"] = row["role"]
+            session["trainer_dept"] = row["department"] or ""
+            session["trainer_name"] = row["trainer_name"]
 
     role = session.get("trainer_role", "trainer")
     dept = session.get("trainer_dept", "")
@@ -834,11 +784,14 @@ def trainer_absence_view():
         return redirect(url_for("trainer_login_page"))
 
     emp_id = session.get("trainer_id")
-    user = get_staff_by_id(emp_id)
-    if user:
-        session["trainer_role"] = user["role"]
-        session["trainer_dept"] = user.get("department", "")
-        session["trainer_name"] = user["trainer_name"]
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT role, department, trainer_name FROM trainers_roles WHERE employee_id = ?", (emp_id,))
+        row = cursor.fetchone()
+        if row:
+            session["trainer_role"] = row["role"]
+            session["trainer_dept"] = row["department"] or ""
+            session["trainer_name"] = row["trainer_name"]
 
     role = session.get("trainer_role", "trainer")
     trainer_dept = session.get("trainer_dept", "")
@@ -914,10 +867,13 @@ def api_absence_records_query():
     trainer_dept = session.get("trainer_dept", "")
 
     if source == "trainer" and trainer_id:
-        user = get_staff_by_id(trainer_id)
-        if user:
-            trainer_role = user["role"]
-            trainer_dept = user.get("department", "")
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT role, department FROM trainers_roles WHERE employee_id = ?", (trainer_id,))
+            r_row = c.fetchone()
+            if r_row:
+                trainer_role = r_row["role"]
+                trainer_dept = r_row["department"] or ""
 
     df = load_absence_dataframe()
     if df is None or df.empty:
@@ -995,9 +951,7 @@ def api_absence_records_query():
     records = []
     for _, row in filtered.iterrows():
         rate = float(row['rate'])
-        hours = float(row['hours'])
         course_status_raw = row['status_raw']
-        rem_hours, _ = compute_remaining_hours(rate, hours, row)
 
         if row['is_folded_or_deprived']:
             if "مطوي" in course_status_raw or "قيده" in course_status_raw or "انقطاع" in course_status_raw or "إنقطاع" in course_status_raw:
@@ -1026,8 +980,7 @@ def api_absence_records_query():
             "course_name": str(row.get('اسم المقرر', '')),
             "section_no": str(row.get('أرقام شعب المقرر', '')).split('.')[0],
             "absence_rate": round(rate, 2),
-            "absence_hours": round(hours, 1),
-            "remaining_hours": rem_hours,
+            "absence_hours": round(float(row['hours']), 1),
             "status_text": st_text,
             "status_badge": st_badge
         })
@@ -1048,7 +1001,31 @@ def api_absence_records_query():
         }
     })
 
-# --- 9. لوحة الإدارة الرئيسية ---
+@app.route("/admin/test_github")
+def admin_test_github():
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
+
+    token_status = f"موجود (يبدأ بـ {GITHUB_TOKEN[:4]}... وطوله {len(GITHUB_TOKEN)} حرف)" if GITHUB_TOKEN else "غير موجود (فارغ)!"
+    ok_branch, branch_msg = ensure_storage_branch()
+    ok_db, db_msg = backup_db_to_github()
+
+    html = f"""
+    <div style="font-family:sans-serif; direction:rtl; max-width:650px; margin:40px auto; padding:25px; border-radius:16px; border:1px solid #cbd5e1; background:#f8fafc;">
+        <h2 style="margin-top:0; color:#0f172a;">فحص الربط السحابي بين Render و GitHub</h2>
+        <ul style="line-height:2; font-size:14px; color:#334155;">
+            <li><strong>المستودع المستهدف:</strong> <code>{GITHUB_REPO}</code></li>
+            <li><strong>حالة GITHUB_TOKEN في Render:</strong> {token_status}</li>
+            <li><strong>فحص/إنشاء فرع التخزين (storage):</strong> <span style="color:{'green' if ok_branch else 'red'}; font-weight:bold;">{branch_msg}</span></li>
+            <li><strong>تجربة حفظ قاعدة البيانات الآن:</strong> <span style="color:{'green' if ok_db else 'red'}; font-weight:bold;">{db_msg}</span></li>
+        </ul>
+        <a href="/admin" style="display:inline-block; margin-top:10px; padding:10px 20px; background:#065f46; color:#fff; text-decoration:none; border-radius:10px; font-weight:bold;">العودة للوحة الإدارة</a>
+    </div>
+    """
+    return html
+
+# --- لوحة الإدارة الرئيسية ---
+
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     msg = None
@@ -1079,8 +1056,9 @@ def admin():
             if file and file.filename.lower().endswith(".pdf"):
                 file.save(SCHEDULES_PDF)
                 invalidate_caches()
-                msg = "تم رفع جدول المتدربين وحفظه في مجلد OneDrive المؤسسي بنجاح!"
-                msg_type = "success"
+                ok, sync_msg = sync_file_to_github(SCHEDULES_PDF, "schedules.pdf", "Update schedules.pdf")
+                msg = "تم رفع جدول المتدربين وحفظه في GitHub بنجاح!" if ok else f"تم الرفع محلياً فقط، وفشل الحفظ في GitHub: {sync_msg}"
+                msg_type = "success" if ok else "error"
 
         elif action == "upload_trainers_schedule":
             if not session.get("logged_in"): return redirect(url_for("admin"))
@@ -1088,8 +1066,9 @@ def admin():
             if file and file.filename.lower().endswith(".pdf"):
                 file.save(TRAINERS_SCHEDULES_PDF)
                 invalidate_caches()
-                msg = "تم رفع جدول المدربين وحفظه في مجلد OneDrive المؤسسي بنجاح!"
-                msg_type = "success"
+                ok, sync_msg = sync_file_to_github(TRAINERS_SCHEDULES_PDF, "trainers_schedules.pdf", "Update trainers_schedules.pdf")
+                msg = "تم رفع جدول المدربين وحفظه في GitHub بنجاح!" if ok else f"تم الرفع محلياً فقط، وفشل الحفظ في GitHub: {sync_msg}"
+                msg_type = "success" if ok else "error"
 
         elif action == "upload_absence_file":
             if not session.get("logged_in"): return redirect(url_for("admin"))
@@ -1104,23 +1083,33 @@ def admin():
                 else:
                     ext = os.path.splitext(file.filename)[1].lower()
                     for old_ext in ['.xlsx', '.xls', '.csv']:
-                        old_path = os.path.join(DIR_CURRENT, f"absence_data{old_ext}")
+                        old_path = os.path.join(BASE_DIR, f"absence_data{old_ext}")
                         if os.path.exists(old_path) and old_ext != ext:
                             try: os.remove(old_path)
                             except Exception: pass
+                            delete_file_from_github(f"absence_data{old_ext}")
 
-                    save_path = os.path.join(DIR_CURRENT, f"absence_data{ext}")
+                    save_path = os.path.join(BASE_DIR, f"absence_data{ext}")
                     file.save(save_path)
                     invalidate_caches()
 
+                    # التحقق من قراءة الملف بنجاح
                     df_check = load_absence_dataframe()
                     rows_count = len(df_check) if df_check is not None else 0
 
                     now_str = get_ksa_now_formatted()
                     set_meta_value("absence_last_update", now_str)
 
-                    msg = f"تم تحديث ملف الغياب ({rows_count} سجل) في سحابة OneDrive المؤسسية بنجاح! (تاريخ التحديث: {now_str})"
-                    msg_type = "success"
+                    # رفع ملف الغياب أولاً ثم قاعدة البيانات
+                    ok, sync_msg = sync_file_to_github(save_path, f"absence_data{ext}", "Update absence_data")
+                    backup_db_to_github()
+
+                    if ok:
+                        msg = f"تم رفع ملف الغياب ({rows_count} سجل) وحفظه في GitHub بنجاح! (تاريخ التحديث: {now_str})"
+                        msg_type = "success"
+                    else:
+                        msg = f"تم حفظ الملف وتفعيله في الموقع ({rows_count} سجل)، وتنبيه GitHub: {sync_msg}"
+                        msg_type = "success" if rows_count > 0 else "error"
             except Exception as e:
                 msg = f"حدث خطأ أثناء رفع ملف الغياب: {str(e)}"
                 msg_type = "error"
@@ -1131,48 +1120,44 @@ def admin():
             if file and file.filename.lower().endswith((".csv", ".xlsx", ".xls")):
                 ext = os.path.splitext(file.filename)[1].lower()
                 for old_ext in ['.xlsx', '.xls', '.csv']:
-                    old_path = os.path.join(DIR_CURRENT, f"so09_data{old_ext}")
+                    old_path = os.path.join(BASE_DIR, f"so09_data{old_ext}")
                     if os.path.exists(old_path) and old_ext != ext:
                         try: os.remove(old_path)
                         except Exception: pass
-                save_path = os.path.join(DIR_CURRENT, f"so09_data{ext}")
+                        delete_file_from_github(f"so09_data{old_ext}")
+                save_path = os.path.join(BASE_DIR, f"so09_data{ext}")
                 file.save(save_path)
                 invalidate_caches()
+                ok, sync_msg = sync_file_to_github(save_path, f"so09_data{ext}", "Update so09_data")
                 df_sec = load_so09_dataframe()
                 if df_sec is not None and not df_sec.empty:
-                    existing_records = load_staff_roles()
-                    existing_ids = {r["employee_id"] for r in existing_records}
-                    for _, row in df_sec.iterrows():
-                        raw_emp = str(row.get('رقم الحاسب', ''))
-                        clean_emp = clean_employee_id(raw_emp)
-                        t_name = str(row.get('اسم المدرب', '')).strip()
-                        if clean_emp and t_name and clean_emp not in existing_ids:
-                            existing_records.append({
-                                "employee_id": clean_emp,
-                                "trainer_name": t_name,
-                                "department": "",
-                                "role": "trainer"
-                            })
-                            existing_ids.add(clean_emp)
-                    save_staff_roles(existing_records)
-                msg = "تم رفع ملف الشعب (SO09) واستيراد المدربين وحفظهم في OneDrive بنجاح!"
-                msg_type = "success"
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        for _, row in df_sec.iterrows():
+                            raw_emp = str(row.get('رقم الحاسب', ''))
+                            clean_emp = clean_employee_id(raw_emp)
+                            t_name = str(row.get('اسم المدرب', '')).strip()
+                            if clean_emp and t_name:
+                                c.execute("INSERT OR IGNORE INTO trainers_roles (employee_id, trainer_name, department, role) VALUES (?, ?, '', 'trainer')", (clean_emp, t_name))
+                        conn.commit()
+                    backup_db_to_github()
+                msg = "تم رفع ملف الشعب (SO09) واستيراد المدربين وحفظهم في GitHub بنجاح!" if ok else f"تم الرفع محلياً فقط، وفشل الحفظ في GitHub: {sync_msg}"
+                msg_type = "success" if ok else "error"
 
     df_abs = load_absence_dataframe()
     departments = []
     if df_abs is not None and not df_abs.empty and 'اسم القسم' in df_abs.columns:
         departments = sorted([d for d in df_abs['اسم القسم'].dropna().unique() if str(d).strip()])
 
-    trainers_list = sorted(
-        load_staff_roles(),
-        key=lambda x: (1 if x.get("role", "trainer") == "trainer" else 0, x.get("trainer_name", ""))
-    )
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM trainers_roles ORDER BY CASE WHEN role = 'trainer' THEN 1 ELSE 0 END, trainer_name ASC")
+        trainers_list = cursor.fetchall()
 
     return render_template("admin.html",
                            logged_in=session.get("logged_in", False),
                            trainers_list=trainers_list,
                            departments=departments,
-                           onedrive_path=DATA_ROOT,
                            msg=msg,
                            msg_type=msg_type)
 
@@ -1184,24 +1169,52 @@ def admin_delete_file(file_type):
     if file_type == "schedules" and os.path.exists(SCHEDULES_PDF):
         try: os.remove(SCHEDULES_PDF)
         except Exception: pass
+        delete_file_from_github("schedules.pdf")
     elif file_type == "trainers_schedules" and os.path.exists(TRAINERS_SCHEDULES_PDF):
         try: os.remove(TRAINERS_SCHEDULES_PDF)
         except Exception: pass
+        delete_file_from_github("trainers_schedules.pdf")
     elif file_type == "absence":
         for ext in ['.xlsx', '.xls', '.csv']:
-            p = os.path.join(DIR_CURRENT, f"absence_data{ext}")
+            p = os.path.join(BASE_DIR, f"absence_data{ext}")
             if os.path.exists(p):
                 try: os.remove(p)
                 except Exception: pass
+            delete_file_from_github(f"absence_data{ext}")
         set_meta_value("absence_last_update", "")
+        backup_db_to_github()
     elif file_type == "so09":
         for ext in ['.xlsx', '.xls', '.csv']:
-            p = os.path.join(DIR_CURRENT, f"so09_data{ext}")
+            p = os.path.join(BASE_DIR, f"so09_data{ext}")
             if os.path.exists(p):
                 try: os.remove(p)
                 except Exception: pass
+            delete_file_from_github(f"so09_data{ext}")
 
     invalidate_caches()
+    return redirect(url_for("admin"))
+
+@app.route("/admin/backup_db")
+def admin_backup_db():
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
+    if not os.path.exists(DB_PATH):
+        return "قاعدة البيانات غير موجودة", 404
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    return send_file(DB_PATH, as_attachment=True, download_name=f"attendance_archive_{timestamp}.db")
+
+@app.route("/admin/restore_db", methods=["POST"])
+def admin_restore_db():
+    if not session.get("logged_in"):
+        return redirect(url_for("admin"))
+    file = request.files.get("db_file")
+    if file and file.filename.lower().endswith(".db"):
+        backup_copy = f"{DB_PATH}.bak"
+        if os.path.exists(DB_PATH):
+            shutil.copy2(DB_PATH, backup_copy)
+        file.save(DB_PATH)
+        init_db()
+        backup_db_to_github()
     return redirect(url_for("admin"))
 
 @app.route("/admin/trainer_role/update", methods=["POST"])
@@ -1211,27 +1224,15 @@ def update_trainer_role():
     emp_id = clean_employee_id(request.form.get("employee_id", ""))
     new_role = request.form.get("role", "trainer")
     new_dept = request.form.get("department", "").strip()
-    force_replace = request.form.get("force_replace", "false").lower() == "true"
-
     if not emp_id:
         return jsonify({"success": False, "message": "رقم المدرب مفقود"})
 
-    ok, message, conflict_user = assign_staff_role_with_singleton_check(
-        emp_id=emp_id,
-        trainer_name="",
-        new_role=new_role,
-        new_dept=new_dept,
-        force_replace=force_replace
-    )
-    if not ok and conflict_user:
-        return jsonify({
-            "success": False,
-            "conflict": True,
-            "message": message,
-            "conflict_name": conflict_user["trainer_name"]
-        })
-
-    return jsonify({"success": ok, "message": message})
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE trainers_roles SET role = ?, department = ? WHERE employee_id = ?", (new_role, new_dept, emp_id))
+        conn.commit()
+    backup_db_to_github()
+    return jsonify({"success": True})
 
 @app.route("/admin/trainer_role/add", methods=["POST"])
 def add_trainer_role():
@@ -1242,13 +1243,11 @@ def add_trainer_role():
     role = request.form.get("role", "trainer")
     dept = request.form.get("department", "").strip()
     if emp_id and t_name:
-        assign_staff_role_with_singleton_check(
-            emp_id=emp_id,
-            trainer_name=t_name,
-            new_role=role,
-            new_dept=dept,
-            force_replace=True
-        )
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("INSERT OR REPLACE INTO trainers_roles (employee_id, trainer_name, department, role) VALUES (?, ?, ?, ?)", (emp_id, t_name, dept, role))
+            conn.commit()
+        backup_db_to_github()
     return redirect(url_for("admin"))
 
 @app.route("/admin/trainer_role/delete/<emp_id>", methods=["POST"])
@@ -1256,8 +1255,11 @@ def delete_trainer_role(emp_id):
     if not session.get("logged_in"):
         return redirect(url_for("admin"))
     clean_id = clean_employee_id(emp_id)
-    records = [r for r in load_staff_roles() if r["employee_id"] != clean_id]
-    save_staff_roles(records)
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("DELETE FROM trainers_roles WHERE employee_id = ?", (clean_id,))
+        conn.commit()
+    backup_db_to_github()
     return redirect(url_for("admin"))
 
 @app.route("/admin/logout")
@@ -1296,29 +1298,37 @@ def attendance_tracker():
 
 @app.route('/admin/attendance/approve', methods=['POST'])
 def approve_report():
-    """
-    اعتماد التقرير الأسبوعي وتوليد ملف PDF رسمي مباشرة داخل مجلد 02_Admin_Reports في OneDrive
-    """
     if not session.get("logged_in"):
         return jsonify({'success': False, 'message': 'غير مصرح'}), 403
     try:
         data = request.get_json()
-        approval_date = get_ksa_now_formatted()
+        approval_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+        training_week = data.get('training_week', 'غير محدد')
+        training_term = data.get('training_term', 'الفصل الأول 1448')
+        department = data.get('department', 'القسم التدريبي')
+        notes = data.get('notes', '')
+        kpis = data.get('kpis', {})
         data['approval_date'] = approval_date
-        training_week = re.sub(r'[\\/*?:"<>|]', '_', str(data.get('training_week', 'أسبوع'))).strip()
-        department = re.sub(r'[\\/*?:"<>|]', '_', str(data.get('department', 'المعهد'))).strip()
-        date_stamp = datetime.now(KSA_TZ).strftime('%Y-%m-%d_%H%M')
+        full_json = json.dumps(data, ensure_ascii=False)
 
-        pdf_filename = f"تقرير_الحضور_{training_week}_{department}_{date_stamp}.pdf"
-        pdf_filepath = os.path.join(DIR_REPORTS, pdf_filename)
-        generate_weekly_admin_pdf(data, pdf_filepath)
-
-        # حفظ نسخة JSON مرافقة لاستعراضها داخل الواجهة عند الحاجة
-        json_filepath = pdf_filepath.replace(".pdf", ".json")
-        with open(json_filepath, "w", encoding="utf-8") as jf:
-            json.dump(data, jf, ensure_ascii=False, indent=2)
-
-        return jsonify({'success': True, 'pdf_file': pdf_filename})
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO approved_reports (
+                    approval_date, training_week, training_term, department,
+                    trainers_count, trainers_attendance_rate,
+                    trainees_count, trainees_present_count, trainees_attendance_rate,
+                    sections_total, sections_executed, notes, full_data_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                approval_date, training_week, training_term, department,
+                int(kpis.get('trainers_count', 0)), float(kpis.get('trainers_attendance_rate', 0.0)),
+                int(kpis.get('trainees_count', 0)), int(kpis.get('trainees_present_count', 0)), float(kpis.get('trainees_attendance_rate', 0.0)),
+                int(kpis.get('sections_total', 0)), int(kpis.get('sections_executed', 0)), notes, full_json
+            ))
+            conn.commit()
+        backup_db_to_github()
+        return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -1326,77 +1336,36 @@ def approve_report():
 def attendance_archive():
     if not session.get("logged_in"):
         return redirect(url_for("admin"))
-    reports = []
-    if os.path.exists(DIR_REPORTS):
-        pdf_files = sorted(
-            [f for f in os.listdir(DIR_REPORTS) if f.lower().endswith(".pdf")],
-            key=lambda f: os.path.getmtime(os.path.join(DIR_REPORTS, f)),
-            reverse=True
-        )
-        for idx, fname in enumerate(pdf_files, 1):
-            fpath = os.path.join(DIR_REPORTS, fname)
-            jpath = fpath.replace(".pdf", ".json")
-            meta = {}
-            if os.path.exists(jpath):
-                try:
-                    with open(jpath, "r", encoding="utf-8") as jf:
-                        meta = json.load(jf)
-                except Exception:
-                    meta = {}
-            kpis = meta.get("kpis", {})
-            reports.append({
-                "id": fname,
-                "filename": fname,
-                "approval_date": meta.get("approval_date", datetime.fromtimestamp(os.path.getmtime(fpath)).strftime('%Y-%m-%d %H:%M')),
-                "training_week": meta.get("training_week", fname.replace(".pdf", "")),
-                "training_term": meta.get("training_term", "-"),
-                "department": meta.get("department", "-"),
-                "trainers_attendance_rate": kpis.get("trainers_attendance_rate", "-"),
-                "trainees_attendance_rate": kpis.get("trainees_attendance_rate", "-"),
-                "notes": meta.get("notes", "")
-            })
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM approved_reports ORDER BY id DESC')
+        reports = cursor.fetchall()
     return render_template('attendance_archive.html', reports=reports)
 
-@app.route('/admin/attendance/archive/download/<path:filename>')
-def download_archived_pdf(filename):
-    if not session.get("logged_in"):
-        return redirect(url_for("admin"))
-    safe_name = os.path.basename(filename)
-    fpath = os.path.join(DIR_REPORTS, safe_name)
-    if not os.path.exists(fpath):
-        return "التقرير غير موجود", 404
-    return send_file(fpath, mimetype="application/pdf", download_name=safe_name)
-
-@app.route('/admin/attendance/archive/<path:report_id>')
+@app.route('/admin/attendance/archive/<int:report_id>')
 def get_archived_report(report_id):
     if not session.get("logged_in"):
         return redirect(url_for("admin"))
-    safe_name = os.path.basename(report_id)
-    pdf_path = os.path.join(DIR_REPORTS, safe_name)
-    json_path = pdf_path.replace(".pdf", ".json")
-    if os.path.exists(json_path):
-        with open(json_path, "r", encoding="utf-8") as jf:
-            archived_json = jf.read()
-        return render_template('attendance_tracker.html', archived_json=archived_json, is_archived_view=True)
-    if os.path.exists(pdf_path):
-        return send_file(pdf_path, mimetype="application/pdf", download_name=safe_name)
-    return "التقرير غير موجود", 404
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT full_data_json FROM approved_reports WHERE id = ?', (report_id,))
+        row = cursor.fetchone()
+    if not row:
+        return "التقرير غير موجود", 404
+    return render_template('attendance_tracker.html', archived_json=row['full_data_json'], is_archived_view=True)
 
-@app.route('/admin/attendance/archive/<path:report_id>/delete', methods=['POST'])
+@app.route('/admin/attendance/archive/<int:report_id>/delete', methods=['POST'])
 def delete_archived_report(report_id):
     if not session.get("logged_in"):
         return redirect(url_for("admin"))
-    safe_name = os.path.basename(report_id)
-    pdf_path = os.path.join(DIR_REPORTS, safe_name)
-    json_path = pdf_path.replace(".pdf", ".json")
-    for p in (pdf_path, json_path):
-        if os.path.exists(p):
-            try: os.remove(p)
-            except Exception: pass
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM approved_reports WHERE id = ?', (report_id,))
+        conn.commit()
+    backup_db_to_github()
     return redirect(url_for('attendance_archive'))
 
 if __name__ == "__main__":
-    from waitress import serve
-    print(f"OneDrive Data Directory: {DATA_ROOT}")
-    print("المنصة تعمل الآن على المنفذ 5000...")
-    serve(app, host="0.0.0.0", port=5000, threads=8)
+    is_debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=is_debug)
