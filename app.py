@@ -31,12 +31,20 @@ def resolve_onedrive_data_dir():
         return custom_dir
 
     # البحث التلقائي عن مجلد OneDrive المؤسسي في نظام ويندوز
+   # البحث التلقائي عن مجلد OneDrive المؤسسي أولاً في نظام ويندوز
     user_profile = os.environ.get("USERPROFILE", "")
     if user_profile and os.path.exists(user_profile):
-        for folder_name in os.listdir(user_profile):
+        folders = os.listdir(user_profile)
+        for folder_name in folders:
+            low = folder_name.lower()
+            if low.startswith("onedrive") and ("technical" in low or "tvtc" in low):
+                return os.path.join(user_profile, folder_name, "TVTC_Portal_Data")
+        for folder_name in folders:
+            if folder_name.lower().startswith("onedrive -"):
+                return os.path.join(user_profile, folder_name, "TVTC_Portal_Data")
+        for folder_name in folders:
             if folder_name.lower().startswith("onedrive"):
-                candidate = os.path.join(user_profile, folder_name, "TVTC_Portal_Data")
-                return candidate
+                return os.path.join(user_profile, folder_name, "TVTC_Portal_Data")
 
     # مسار احتياطي داخل مجلد المشروع في حال لم يتوفر OneDrive على الجهاز
     return os.path.join(BASE_DIR, "TVTC_Portal_Data")
