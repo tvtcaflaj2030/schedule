@@ -55,7 +55,7 @@
                 </div>
                 <div>
                     <h1 class="font-black text-sm sm:text-base text-slate-800">لوحة تحكم الإدارة</h1>
-                    <p class="text-[11px] text-slate-400">إدارة الجداول وسير العملية التدريبية</p>
+                    <p class="text-[11px] text-slate-400">مزامنة مباشرة مع سحابة OneDrive المؤسسية</p>
                 </div>
             </div>
 
@@ -90,18 +90,23 @@
             <div class="max-w-2xl space-y-2 relative z-10">
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold border border-emerald-400/20 backdrop-blur-sm">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    نظام تقارير رايات المتكامل
+                    نظام تقارير رايات المتكامل (OneDrive المؤسسي)
                 </div>
                 <h2 class="text-xl font-black text-white">منظومة متابعة سير العملية التدريبية (رايات)</h2>
                 <p class="text-xs text-slate-300 leading-relaxed">
-                    تحليل تقارير رايات الأسبوعية، فحص ومتابعة نسب الحرمان، وتوزيع صلاحيات المدربين ورؤساء الأقسام والوكلاء والمرشدين بكل مرونة وسهولة.
+                    تحليل تقارير رايات الأسبوعية، توليد تقارير PDF للإدارة، وتوزيع صلاحيات المدربين ورؤساء الأقسام والوكلاء والمرشدين بدون تكرار المناصب.
                 </p>
+                {% if onedrive_path %}
+                <p class="text-[11px] text-emerald-300/90 font-mono pt-1">
+                    <i class="fa-solid fa-cloud-arrow-up ml-1"></i> مسار المزامنة: {{ onedrive_path }}
+                </p>
+                {% endif %}
             </div>
 
-            <div class="relative z-10 shrink-0">
-                <a href="/admin/attendance" class="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg hover:shadow-emerald-900/50 flex items-center gap-2 transition-all transform hover:-translate-y-0.5">
+            <div class="relative z-10 shrink-0 flex flex-wrap gap-2">
+                <a href="/admin/attendance" class="px-5 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg hover:shadow-emerald-900/50 flex items-center gap-2 transition-all transform hover:-translate-y-0.5">
                     <i class="fa-solid fa-chart-line text-base"></i>
-                    <span>تقارير الغياب الاسبوعية</span>
+                    <span>تقارير الغياب الأسبوعية (PDF)</span>
                     <i class="fa-solid fa-arrow-left text-xs mr-1"></i>
                 </a>
             </div>
@@ -185,7 +190,7 @@
                     </div>
                     <h3 class="text-base font-black text-slate-800">بيانات نسب الغياب والحرمان</h3>
                     <p class="text-xs text-slate-500 leading-relaxed">
-                        رفع ملف رايات الشامل لنسب الغياب لتفعيل استعلام الطلاب ولوحة فرز الكشوفات.
+                        رفع ملف رايات الشامل لنسب الغياب لعرض النسبة والساعات المتبقية للمتدرب ولوحة فرز الكشوفات.
                     </p>
                 </div>
 
@@ -238,7 +243,7 @@
 
         </section>
 
-        <!-- إدارة الصلاحيات والمناصب التدريبية والإدارية -->
+        <!-- إدارة الصلاحيات والمناصب التدريبية والإدارية (مع منع ازدواج المناصب الفردية) -->
         <section class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-5">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                 <div>
@@ -247,7 +252,7 @@
                         إدارة صلاحيات المدربين ورؤساء الأقسام والمسؤولين
                     </h3>
                     <p class="text-xs text-slate-400 mt-0.5">
-                        حدد المنصب الوظيفي لكل حساب (المدرب لشعبه فقط، رئيس القسم لقسمه المحدد، والوكيل/المرشد/المسؤول العام لكافة الأقسام).
+                        يمنع النظام ازدواج المناصب الإدارية الفردية (الوكيل، المرشد، المسؤول العام، ورئيس كل قسم) وينقل المنصب تلقائياً عند التحديث.
                     </p>
                 </div>
                 
@@ -357,7 +362,7 @@
     {% endif %}
 
     <script>
-        async function updateTrainerInfo(empId) {
+        async function updateTrainerInfo(empId, forceReplace = false) {
             const newRole = document.getElementById('role-' + empId).value;
             const newDept = document.getElementById('dept-' + empId).value;
 
@@ -365,6 +370,7 @@
             formData.append('employee_id', empId);
             formData.append('role', newRole);
             formData.append('department', newDept);
+            formData.append('force_replace', forceReplace ? 'true' : 'false');
 
             try {
                 const res = await fetch('/admin/trainer_role/update', {
@@ -374,8 +380,15 @@
                 const data = await res.json();
                 if (data.success) {
                     location.reload();
+                } else if (data.conflict) {
+                    if (confirm(data.message)) {
+                        await updateTrainerInfo(empId, true);
+                    } else {
+                        location.reload();
+                    }
                 } else {
                     alert('خطأ: ' + data.message);
+                    location.reload();
                 }
             } catch (err) {
                 alert('تعذر الاتصال بالسيرفر.');

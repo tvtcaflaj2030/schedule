@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -45,8 +45,8 @@
                 <i class="fa-solid fa-user-clock"></i>
             </div>
             <div>
-                <h2 class="text-lg sm:text-xl font-black text-slate-800">الاستعلام عن نسب الغياب والإنذارات</h2>
-                <p class="text-xs text-slate-500 mt-1">أدخل رقمك التدريبي لمتابعة وضعك في المقررات والتأكد من عدم وصولك لمرحلة الحرمان</p>
+                <h2 class="text-lg sm:text-xl font-black text-slate-800">الاستعلام عن نسب الغياب والساعات المتبقية</h2>
+                <p class="text-xs text-slate-500 mt-1">أدخل رقمك التدريبي لمتابعة نسبة غيابك الحالية والساعات المتبقية قبل الحرمان</p>
             </div>
 
             <form id="absence-form" class="max-w-md mx-auto space-y-3 pt-2">
@@ -122,7 +122,7 @@
             <div class="flex items-center justify-between px-1">
                 <h4 class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
                     <i class="fa-solid fa-layer-group text-emerald-800"></i>
-                    <span>بطاقات المقررات ومؤشرات الغياب</span>
+                    <span>بطاقات المقررات ومؤشرات الغياب والساعات المتبقية</span>
                 </h4>
                 <span id="courses-count-badge" class="text-[11px] font-bold bg-slate-200/80 text-slate-700 px-3 py-1 rounded-full">0 مقررات</span>
             </div>
@@ -224,6 +224,7 @@
                         let badgeClass = 'bg-emerald-100 text-emerald-900 border border-emerald-200';
                         let barColor = 'bg-emerald-500';
                         let rateTextColor = 'text-emerald-700';
+                        let remTextColor = 'text-emerald-800';
                         let statusIcon = 'fa-circle-check text-emerald-600';
 
                         if (isDanger) {
@@ -231,18 +232,21 @@
                             badgeClass = 'bg-rose-100 text-rose-900 border border-rose-200';
                             barColor = 'bg-rose-600';
                             rateTextColor = 'text-rose-700';
+                            remTextColor = 'text-rose-700';
                             statusIcon = isFolded ? 'fa-ban text-rose-600' : 'fa-triangle-exclamation text-rose-600';
                         } else if (c.status_color === 'warning-high' || rate >= 15.0) {
                             cardBorder = 'border-orange-200';
                             badgeClass = 'bg-orange-100 text-orange-950 border border-orange-200';
                             barColor = 'bg-orange-500';
                             rateTextColor = 'text-orange-700';
+                            remTextColor = 'text-orange-800';
                             statusIcon = 'fa-circle-exclamation text-orange-500';
                         } else if (c.status_color === 'warning-low' || rate >= 10.0) {
                             cardBorder = 'border-amber-200';
                             badgeClass = 'bg-amber-100 text-amber-900 border border-amber-200';
                             barColor = 'bg-amber-400';
                             rateTextColor = 'text-amber-700';
+                            remTextColor = 'text-amber-800';
                             statusIcon = 'fa-bell text-amber-500';
                         }
 
@@ -253,6 +257,18 @@
                             progressWidth = Math.min(100, Math.round((rate / 20.0) * 100));
                             if (rate > 0 && progressWidth < 6) progressWidth = 6;
                         }
+
+                        let remDisplay = 'غير محدد';
+                        if (isDanger) {
+                            remDisplay = '0 <small class="text-[10px] font-bold">ساعة</small>';
+                        } else if (c.remaining_hours !== null && c.remaining_hours !== undefined) {
+                            remDisplay = `${c.remaining_hours} <small class="text-[10px] font-bold">ساعة</small>`;
+                        } else if (rate === 0) {
+                            remDisplay = 'كامل الرصيد';
+                        }
+
+                        // استخراج الحالة المختصرة للشارة بدون تكرار المتبقي داخلها
+                        let shortBadgeText = c.status_text.split('—')[0].trim();
 
                         const card = document.createElement('div');
                         card.className = `bg-white p-5 rounded-3xl border ${cardBorder} shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4`;
@@ -267,18 +283,22 @@
                                 </div>
                                 <span class="px-3 py-1 rounded-xl text-[11px] font-black shrink-0 flex items-center gap-1.5 ${badgeClass}">
                                     <i class="fa-solid ${statusIcon}"></i>
-                                    <span>${c.status_text}</span>
+                                    <span>${shortBadgeText}</span>
                                 </span>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-2 pt-1">
-                                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center justify-between">
-                                    <span class="text-[11px] font-bold text-slate-500">ساعات الغياب</span>
-                                    <span class="text-sm font-black text-slate-800">${c.absence_hours} <small class="text-[10px] font-bold text-slate-500">ساعة</small></span>
+                            <div class="grid grid-cols-3 gap-2 pt-1 text-center">
+                                <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 flex flex-col items-center justify-center">
+                                    <span class="text-[10.5px] font-bold text-slate-500">ساعات الغياب</span>
+                                    <span class="text-sm font-black text-slate-800 mt-0.5">${c.absence_hours} <small class="text-[10px] font-bold text-slate-500">ساعة</small></span>
                                 </div>
-                                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center justify-between">
-                                    <span class="text-[11px] font-bold text-slate-500">نسبة الغياب</span>
-                                    <span class="text-base font-black ${rateTextColor}">${isFolded && rate === 0 ? 'مطوي قيده' : rate + '%'}</span>
+                                <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 flex flex-col items-center justify-center">
+                                    <span class="text-[10.5px] font-bold text-slate-500">نسبة الغياب</span>
+                                    <span class="text-sm font-black ${rateTextColor} mt-0.5">${isFolded && rate === 0 ? 'مطوي قيده' : rate + '%'}</span>
+                                </div>
+                                <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 flex flex-col items-center justify-center">
+                                    <span class="text-[10.5px] font-bold text-slate-500">المتبقي للحرمان</span>
+                                    <span class="text-sm font-black ${remTextColor} mt-0.5">${remDisplay}</span>
                                 </div>
                             </div>
 
